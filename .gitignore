@@ -1,0 +1,6 @@
+.
+└── ProjectName/
+├── venv/
+│ └── ...
+├── .gitignore
+└── secretthings.py
