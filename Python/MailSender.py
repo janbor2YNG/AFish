@@ -50,4 +50,4 @@ with open(r"..\Server\Datenbanken\current_user_list.csv", newline="", encoding="
 
             # Mail senden
             server.sendmail(SENDER_EMAIL, user_mail, mime_message.as_string())
-            print(f"Gesendet an: {user_mail}")
+            print(f"Sent to: {user_mail}")
