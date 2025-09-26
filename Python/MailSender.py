@@ -13,16 +13,30 @@ SENDER_PASSWORD = "czqc rfzf qijm vvnf"
 
 # Betreff
 subject = "PLATZHALTER"
-# Alle Dateien im Ordner auflisten (nur Dateien, keine Unterordner)
-chose_random_mail_body = [f for f in os.listdir(r"..\Server\Mails") if os.path.isfile(os.path.join(r"..\Server\Mails", f))]
+variable_mail_body_randomnes = input("Should the body be selected randomly? [y/N]: ").strip().lower()
+input_body_randomnes = variable_mail_body_randomnes == "y"
+print("Randomness:", input_body_randomnes)
 
-# Zufällige Datei auswählen
-random_mail_body = random.choice(chose_random_mail_body)
-print(f"Chosen mail: {random_mail_body}")
-with open (fr"..\Server\Mails\{random_mail_body}", "r", encoding="utf-8") as file:
-    mail_body = file.read()
-
-
+if input_body_randomnes:
+    # Alle Dateien im Ordner auflisten (nur Dateien, keine Unterordner)
+    list_mail_bodys = [f for f in os.listdir(r"..\Server\Mails") if os.path.isfile(os.path.join(r"..\Server\Mails", f))]
+    # Zufällige Datei auswählen
+    random_mail_body = random.choice(list_mail_bodys)
+    print(f"Chosen mail: {random_mail_body}")
+    with open (fr"..\Server\Mails\{random_mail_body}", "r", encoding="utf-8") as file:
+        mail_body = file.read()
+else:
+    mail_body_type = (input("Which body type(s) do you want? (Google [g], Office [o]) Multiple [a,b,c,etc.]"))
+    if mail_body_type == "g":
+        # Alle Dateien im Ordner auflisten (nur Dateien, keine Unterordner)
+        list_mail_bodys = [f for f in os.listdir(r"..\Server\Mails") if os.path.isfile(os.path.join(r"..\Server\Mails", f))]
+        with open(fr"..\Server\Mails\Google_Sicherheitswarnung.html", "r", encoding="utf-8") as file:
+            mail_body = file.read()
+    elif mail_body_type == "o":
+        # Alle Dateien im Ordner auflisten (nur Dateien, keine Unterordner)
+        list_mail_bodys = [f for f in os.listdir(r"..\Server\Mails") if os.path.isfile(os.path.join(r"..\Server\Mails", f))]
+        with open(fr"..\Server\Mails\TEST_Mail.html", "r", encoding="utf-8") as file:
+            mail_body = file.read()
 # CSV einlesen
 with open(r"..\Server\Datenbanken\current_user_list.csv", newline="", encoding="utf-8") as f:
     reader = csv.DictReader(f)
