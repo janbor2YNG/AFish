@@ -6,7 +6,7 @@ import yaml
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-with open("cpgn1.yaml", "r", encoding="utf-8") as file:
+with open("..\Server\Datenbanken\cpgn1.yaml", "r", encoding="utf-8") as file:
     config_cpgn = yaml.safe_load(file)
 # Absender-Infos
 SMTP_SERVER = "smtp.gmail.com"
@@ -16,7 +16,7 @@ SENDER_PASSWORD = "czqc rfzf qijm vvnf"
 
 # Betreff
 subject = "PLATZHALTER"
-variable_mail_body_randomnes = config_cpgn["mail_body_randomnesses"]
+mail_body_randomnes = config_cpgn["mail_body_randomnes"]
 
 
 chosen_mail_body = "placeholder"
@@ -28,7 +28,7 @@ def declareMailBody(dateiname):
         mail_body = file.read()
     return mail_body
 
-if input_body_randomnes:
+if mail_body_randomnes:
     # Alle Dateien im Ordner auflisten (nur Dateien, keine Unterordner)
     list_mail_bodys = [f for f in os.listdir(r"..\Server\Mails") if os.path.isfile(os.path.join(r"..\Server\Mails", f))]
     # Zufällige Datei auswählen
@@ -36,14 +36,9 @@ if input_body_randomnes:
     print(f"Chosen mail: {chosen_mail_body}")
     mail_body = declareMailBody(chosen_mail_body)
 else:
-    mail_body_type = (input("Which body type(s) do you want? (Google [g], Office [o]) Multiple [a,b,c,etc.]"))
-    chosen_mail_body = mail_body_type[0]
-    match mail_body_type:
-        case "g": chosen_mail_body = "Google_Sicherheitswarnung.html"
-        case "o": chosen_mail_body = "TEST_mail.html"
-    print(f"Chosen mail: {chosen_mail_body}")
+    chosen_mail_body = config_cpgn["body_template"]
     mail_body = declareMailBody(chosen_mail_body)
-
+    print(f"Chosen mail: {chosen_mail_body}")
 # CSV einlesen
 with open(r"..\Server\Datenbanken\current_user_list.csv", newline="", encoding="utf-8") as f:
     reader = csv.DictReader(f)

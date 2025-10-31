@@ -10,7 +10,7 @@ target:
     - Deutsch
   min_alter: 25
 mail_body_randomnes: false
-body_template: "office_body_v2"
+body_template: "Google_Sicherheitswarnung.html"
 send:
   total_emails: 120
   timeframe:
