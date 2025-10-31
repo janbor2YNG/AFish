@@ -2,9 +2,12 @@ import csv
 import os
 import random
 import smtplib
+import yaml
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+with open("cpgn1.yaml", "r", encoding="utf-8") as file:
+    config_cpgn = yaml.safe_load(file)
 # Absender-Infos
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -13,9 +16,7 @@ SENDER_PASSWORD = "czqc rfzf qijm vvnf"
 
 # Betreff
 subject = "PLATZHALTER"
-variable_mail_body_randomnes = input("Should the body be selected randomly? [y/N]: ").strip().lower()
-input_body_randomnes = variable_mail_body_randomnes == "y"
-print("Randomness:", input_body_randomnes)
+variable_mail_body_randomnes = config_cpgn["mail_body_randomnesses"]
 
 
 chosen_mail_body = "placeholder"

@@ -1,0 +1,21 @@
+name: "Phishing Awareness November"
+description: "Office-Style Mail an Fachlehrer"
+target:
+  include_role:
+    - Lehrer
+    - Sekretäre
+  exclude_role:
+    - Putzfrau
+  fach:
+    - Deutsch
+  min_alter: 25
+mail_body_randomnes: false
+body_template: "office_body_v2"
+send:
+  total_emails: 120
+  timeframe:
+    start: "2025-11-10T08:00:00+01:00"
+    end:   "2025-11-14T18:00:00+01:00"
+  max_per_minute: 5
+personalization: true
+tracking: false
