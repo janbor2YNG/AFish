@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Phishing Awareness YAML Generator</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;max-width:900px;margin:28px auto;padding:18px}
+    label{display:block;margin-top:12px;font-weight:600}
+    input[type=text], input[type=datetime-local], input[type=number], textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px}
+    .row{display:flex;gap:10px}
+    .row > *{flex:1}
+    button{margin-top:14px;padding:10px 14px;border-radius:8px;border:none;background:#0b74de;color:white;font-weight:700;cursor:pointer}
+    fieldset{margin-top:12px;border:1px solid #ccc;border-radius:6px;padding:10px}
+    legend{font-weight:700}
+    label.inline{display:block;margin:4px 0;font-weight:400}
+  </style>
+</head>
+<body>
+  <h1>Phishing Awareness YAML Generator</h1>
+  <p>Fülle alle Felder aus und lade anschließend die YAML-Datei herunter.</p>
+
+  <label for="name">name</label>
+  <input id="name" type="text" placeholder="Phishing Awareness November" />
+
+  <label for="description">description</label>
+  <input id="description" type="text" placeholder="Office-Style Mail an Fachlehrer" />
+
+  <h3>target</h3>
+  <label for="include_role">include_role (Komma-getrennt)</label>
+  <input id="include_role" type="text" placeholder="Lehrer, Sekretäre" />
+
+  <label for="exclude_role">exclude_role (Komma-getrennt)</label>
+  <input id="exclude_role" type="text" placeholder="Putzfrau" />
+
+  <label for="fach">fach (Komma-getrennt)</label>
+  <input id="fach" type="text" placeholder="Deutsch" />
+
+  <label for="min_alter">min_alter</label>
+  <input id="min_alter" type="number" placeholder="25" />
+
+  <label for="mail_body_randomnes">mail_body_randomnes</label>
+  <select id="mail_body_randomnes">
+    <option value="false">false</option>
+    <option value="true">true</option>
+  </select>
+
+  <fieldset id="body_template_field">
+    <legend>body_template</legend>
+    <label class="inline"><input type="checkbox" name="body_template" value="google"> Google</label>
+    <label class="inline"><input type="checkbox" name="body_template" value="office"> Office</label>
+    <label class="inline"><input type="checkbox" name="body_template" value="firefox"> Firefox</label>
+  </fieldset>
+
+  <h3>send</h3>
+  <label for="total_emails">total_emails</label>
+  <input id="total_emails" type="number" placeholder="120" />
+
+  <label for="start">timeframe.start</label>
+  <input id="start" type="datetime-local" />
+
+  <label for="end">timeframe.end</label>
+  <input id="end" type="datetime-local" />
+
+  <label for="max_per_minute">max_per_minute</label>
+  <input id="max_per_minute" type="number" placeholder="5" />
+
+  <label for="personalization">personalization</label>
+  <select id="personalization">
+    <option value="true">true</option>
+    <option value="false">false</option>
+  </select>
+
+  <label for="tracking">tracking</label>
+  <select id="tracking">
+    <option value="false">false</option>
+    <option value="true">true</option>
+  </select>
+
+  <button id="download">Download YAML</button>
+
+  <script>
+    function toYAML(obj, indent = '') {
+    let yaml = '';
+    for (const key in obj) {
+      const val = obj[key];
+      if (Array.isArray(val)) {
+        yaml += `${indent}${key}:\n`;
+        val.forEach(v => yaml += `${indent}  - ${v}\n`);
+      } else if (typeof val === 'object' && val !== null) {
+        yaml += `${indent}${key}:\n` + toYAML(val, indent + '  ');
+      } else {
+        yaml += `${indent}${key}: ${val}\n`;
+      }
+    }
+    return yaml;
+  }
+
+  document.getElementById('download').addEventListener('click', () => {
+    const selectedTemplates = [...document.querySelectorAll('input[name="body_template"]:checked')].map(c => c.value);
+
+    function safeISO(id) {
+      const val = document.getElementById(id).value;
+      return val ? new Date(val).toISOString() : '';
+    }
+
+    const data = {
+      name: document.getElementById('name').value,
+      description: document.getElementById('description').value,
+      target: {
+        include_role: document.getElementById('include_role').value.split(',').map(v => v.trim()).filter(Boolean),
+        exclude_role: document.getElementById('exclude_role').value.split(',').map(v => v.trim()).filter(Boolean),
+        fach: document.getElementById('fach').value.split(',').map(v => v.trim()).filter(Boolean),
+        min_alter: Number(document.getElementById('min_alter').value)
+      },
+      mail_body_randomnes: document.getElementById('mail_body_randomnes').value === 'true',
+      body_template: selectedTemplates,
+      send: {
+        total_emails: Number(document.getElementById('total_emails').value),
+        timeframe: {
+          start: safeISO('start'),
+          end: safeISO('end')
+        },
+        max_per_minute: Number(document.getElementById('max_per_minute').value)
+      },
+      personalization: document.getElementById('personalization').value === 'true',
+      tracking: document.getElementById('tracking').value === 'true'
+    };
+
+    const yamlText = toYAML(data);
+    const blob = new Blob([yamlText], { type: 'text/yaml;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (data.name || 'data').replace(/\\s+/g, '_') + '.yaml';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  });
+  </script>
+</body>
+</html>
