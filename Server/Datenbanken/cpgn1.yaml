@@ -9,13 +9,15 @@ target:
   fach:
     - Deutsch
   min_alter: 25
-mail_body_randomnes: false
-body_template: "Google_Sicherheitswarnung.html"
+mail_body_randomnes: true
+body_template:
+  - google
+  - test
 send:
   total_emails: 120
   timeframe:
-    start: "2025-11-10T08:00:00+01:00"
-    end:   "2025-11-14T18:00:00+01:00"
-  max_per_minute: 5
+    start: "14.11.2025"
+    end:   "14.12.2025"
+
 personalization: true
 tracking: false
