@@ -20,7 +20,7 @@ SENDER_PASSWORD = "czqc rfzf qijm vvnf"
 START = config_cpgn["send"]["timeframe"]["start"]       # "01.01.2026"
 END = config_cpgn["send"]["timeframe"]["end"]           # "01.02.2026"
 MAIL_COUNT = config_cpgn["send"]["total_emails"]  # z.B. 100
-start_time = "16:50"
+start_time = "07:59"
 start_time_zum_rechnen = 16
 # Betreff
 subject = "PLATZHALTER"
