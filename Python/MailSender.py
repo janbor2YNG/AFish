@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-with open("..\Server\Datenbanken\cpgn1.yaml", "r", encoding="utf-8") as file:
+with open(r"..\Server\Datenbanken\cpgn1.yaml", "r", encoding="utf-8") as file:
     config_cpgn = yaml.safe_load(file)
 id = 0
 # Absender-Infos
