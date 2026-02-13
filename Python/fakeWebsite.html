@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Apply Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        input[type="email"] {
+            width: 250px;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .message {
+            margin-top: 15px;
+            font-size: 14px;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Apply Now</h2>
+        <input type="email" id="email" placeholder="Deine Email" required>
+        <br>
+        <button onclick="applyEmail()">Apply</button>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        function getIdFromURL() {
+            // URL z.B.: http://localhost:5000/?id=123
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        function applyEmail() {
+            const emailInput = document.getElementById('email');
+            const message = document.getElementById('message');
+            const email = emailInput.value.trim();
+            const id = getIdFromURL();
+
+            if (!email) {
+                message.style.color = "red";
+                message.textContent = "Bitte gib eine Email ein!";
+                return;
+            }
+
+            fetch('/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, id: id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success){
+                    message.style.color = "green";
+                    message.textContent = data.message;
+                    emailInput.value = "";
+                } else {
+                    message.style.color = "red";
+                    message.textContent = data.message;
+                }
+            })
+            .catch(err => {
+                message.style.color = "red";
+                message.textContent = "Fehler beim Senden!";
+                console.error(err);
+            });
+        }
+    </script>
+</body>
+</html>
