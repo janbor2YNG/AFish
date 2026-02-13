@@ -21,6 +21,13 @@ def create_connection():
     conn.close()
     return db_path
 db_path = create_connection()
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
+with sqlite3.connect(db_path) as conn:
+    cursor = conn.cursor()
+    sql_quest = """
+    CREATE TABLE IF NOT EXISTS users (
+    
+    
+    """
+
+    cursor.execute(sql_quest)
 conn.close()
