@@ -12,11 +12,12 @@ target:
 mail_body_randomnes: true
 body_template:
   - test
+  - google
 send:
-  total_emails: 120
+  total_emails: 400
   timeframe:
-    start: "14.11.2025"
-    end:   "14.12.2025"
+    start: "29.01.2026"
+    end:   "20.02.2026"
 
 personalization: true
 tracking: false
