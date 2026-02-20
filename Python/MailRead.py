@@ -2,8 +2,21 @@ import imaplib
 import email
 import re
 import yaml
+import sqlite3
+import csv
+from pathlib import Path
 from email.utils import parseaddr
 from datetime import datetime, timedelta
+
+def get_latest_db() -> Path:
+    folder = Path("databases")
+    dbs = sorted(
+        folder.glob("campaign*.db"),
+        key=lambda p: int(re.search(r'\d+', p.stem).group())
+    )
+    if not dbs:
+        raise FileNotFoundError("Keine campaign*.db Datenbank gefunden!")
+    return dbs[-1]
 
 with open("../Server/Datenbanken/cpgn1.yaml", "r", encoding="utf-8") as file:
     config_cpgn = yaml.safe_load(file)
@@ -23,6 +36,8 @@ def to_imap_date(date_str):
 START_DATE = to_imap_date(START_DATE_DE)
 END_DATE = to_imap_date(END_DATE_DE)
 
+db_path = get_latest_db()
+print(f"Verbinde mit Datenbank: {db_path}")
 
 # Verbindung aufbauen
 mail = imaplib.IMAP4_SSL(IMAP_SERVER)
@@ -55,6 +70,30 @@ for e_id in email_ids:
 
     # Prüfen auf genau 'id' direkt gefolgt von Zahl (z.B. id123)
     match = re.search(r'\bmh(\d+)\b', body, re.IGNORECASE)
+    # ALT:
     if match:
         print(f"Von: {sender_email} → Gefunden: id{match.group(1)}")
+
+    # NEU:
+    if match:
+        mail_nr = int(match.group(1))
+        print(f"Von: {sender_email} → ID gefunden: mh{mail_nr}")
+        spalte = f"mail_{mail_nr}"
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(users)")
+            spalten = [row[1] for row in cursor.fetchall()]
+            if spalte not in spalten:
+                print(f"Spalte '{spalte}' existiert nicht – übersprungen.")
+            else:
+                cursor.execute("SELECT id FROM users WHERE email = ?", (sender_email,))
+                user = cursor.fetchone()
+                if not user:
+                    print(f"User '{sender_email}' nicht gefunden – übersprungen.")
+                else:
+                    try:
+                        cursor.execute(f"UPDATE users SET {spalte} = ? WHERE id = ?", ("bestanden", user[0]))
+                        print(f"✓ {sender_email} → {spalte} = 'bestanden'")
+                    except sqlite3.IntegrityError:
+                        print(f"✗ Ungültiger Status")
 

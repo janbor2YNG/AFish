@@ -34,7 +34,10 @@ db_path = create_connection()
 # Spalten dynamisch generieren
 mail_spalten = ""
 for i in range(1, total_mails + 1):
-    mail_spalten += f"    mail_{i} TEXT,\n"
+    mail_spalten += (
+        f"    mail_{i} TEXT DEFAULT 'nicht beantwortet' "
+        f"CHECK(mail_{i} IN ('bestanden', 'durchgefallen', 'nicht beantwortet')),\n"
+    )
 mail_spalten = mail_spalten.rstrip(",\n")
 
 sql_quest = f"""
