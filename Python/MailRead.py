@@ -58,3 +58,4 @@ for e_id in email_ids:
     if match:
         print(f"Von: {sender_email} → Gefunden: id{match.group(1)}")
 
+
