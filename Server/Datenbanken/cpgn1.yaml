@@ -14,7 +14,7 @@ send:
   total_emails: 400
   timeframe:
     start: "29.01.2026"
-    end:   "20.02.2026"
+    end:   "21.02.2026"
 
 personalization: true
 tracking: false

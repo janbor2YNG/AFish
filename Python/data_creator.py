@@ -95,9 +95,13 @@ with sqlite3.connect(db_path) as conn:
             print(f"Übersprungen (keine Email): {name} {lastname}")
             continue
 
-        cursor.execute("""
-            INSERT INTO users (name, lastname, email)
-            VALUES (?, ?, ?)
-        """, (name, lastname, email))
+        try:
+            cursor.execute("""
+                INSERT INTO users (name, lastname, email)
+                VALUES (?, ?, ?)
+            """, (name, lastname, email))
+        except Exception as e:
+            print(f"Fehler bei {name} {lastname}: {e}")
 
+    conn.commit()
     print(f"{len(empfaenger)} User in Datenbank eingetragen.")
