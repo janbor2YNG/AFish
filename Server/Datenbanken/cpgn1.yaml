@@ -2,12 +2,9 @@ name: "Phishing Awareness November"
 description: "Office-Style Mail an Fachlehrer"
 target:
   include_role:
-    - Lehrer
-    - Sekretäre
   exclude_role:
     - Putzfrau
   fach:
-    - Deutsch
   min_alter: 25
 mail_body_randomnes: true
 body_template:

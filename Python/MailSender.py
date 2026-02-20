@@ -9,7 +9,6 @@ import time
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
 with open("../Server/Datenbanken/cpgn1.yaml", "r", encoding="utf-8") as file:
     config_cpgn = yaml.safe_load(file)
 id = 0
@@ -22,7 +21,7 @@ SENDER_PASSWORD = "czqc rfzf qijm vvnf"
 START = config_cpgn["send"]["timeframe"]["start"]       # "01.01.2026"
 END = config_cpgn["send"]["timeframe"]["end"]           # "01.02.2026"
 MAIL_COUNT = config_cpgn["send"]["total_emails"]  # z.B. 100
-start_time = "15:43"
+start_time = "15:58"
 start_time_zum_rechnen = 14
 # Betreff
 subject = "PLATZHALTER"
@@ -80,6 +79,8 @@ def declareMailBody(dateiname):
         mail_body = file.read()
     return mail_body
 def send_mail(anzahl, waiting_time):
+
+
     for i in range(anzahl):
         global id
         id += 1
