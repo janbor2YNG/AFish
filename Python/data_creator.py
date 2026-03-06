@@ -3,7 +3,7 @@ import yaml
 import csv
 from pathlib import Path
 # YAML laden
-with open(r"..\Server\Datenbanken\cpgn1.yaml", "r", encoding="utf-8") as file:
+with open(r"../Server/Datenbanken/cpgn1.yaml", "r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
 total_mails = config["send"]["total_emails"]
@@ -80,7 +80,7 @@ def user_erlaubt(row):
 
     return True
 
-with open(r"..\Server\Datenbanken\current_user_list.csv", newline="", encoding="utf-8") as f:
+with open(r"../Server/Datenbanken/current_user_list.csv", newline="", encoding="utf-8") as f:
     reader = csv.DictReader(f)
     empfaenger = [row for row in reader if user_erlaubt(row)]
 
