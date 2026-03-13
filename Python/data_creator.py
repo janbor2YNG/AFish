@@ -2,8 +2,10 @@ import sqlite3
 import yaml
 import csv
 from pathlib import Path
+from Server.Flask.config_manager import get_config
 # YAML laden
-with open(r"../Server/Datenbanken/cpgn1.yaml", "r", encoding="utf-8") as file:
+yaml_file = get_config()
+with open(fr"../Server/Datenbanken/{yaml_file}", "r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
 total_mails = config["send"]["total_emails"]

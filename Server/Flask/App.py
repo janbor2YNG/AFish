@@ -1,15 +1,22 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 import sqlite3
 from pathlib import Path
 import re
+import yaml
 
+import os
+
+from config_manager import get_config, set_active_config
 app = Flask(__name__)
 saved_emails = []
 @app.route('/')
 def Start():
-  with open("failed_set_status.html") as file:
+  with open("test.html") as file:
     return file.read()
-
+@app.route("/failed_set_status.html")
+def fakewebfro():
+  with open("/failed_set_status.html") as file:
+    return file.read()
 @app.route("/fakeWebsiteBackend.js")
 def fakwebbac():
   with open("fakeWebsiteBackend.js") as file:
@@ -63,11 +70,48 @@ def apply():
             else:
                 try:
                     cursor.execute(f"UPDATE users SET {spalte} = ? WHERE id = ?", ("bestanden", user[0]))
-                    print(f"✓ {email} → {spalte} = 'bestanden'")
+                    print(f"✓ {email} → {spalte} = 'durchgefallen'")
                 except sqlite3.IntegrityError:
                     print(f"✗ Ungültiger Status")
 
     return jsonify({"success": True, "message": f"{email} wurde eingetragen."})
+
+app.secret_key = 'your-secret-key'
+UPLOAD_FOLDER = '../Datenbanken'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+@app.route('/upload-yaml', methods=['POST'])
+def upload_yaml():
+    file = request.files.get('yaml_file')
+    if not file or not file.filename.endswith(('.yml', '.yaml')):
+        return jsonify({'error': 'Invalid file'}), 400
+
+    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(filepath)
+
+    # Validate it's valid YAML
+    with open(filepath) as f:
+        yaml.safe_load(f)
+
+    return jsonify({'message': 'Uploaded', 'filename': file.filename})
+
+@app.route('/set-active-config', methods=['POST'])
+def set_active():
+    filename = request.json.get('filename')
+    set_active_config(filename)  # schreibt in active_config.txt
+    return jsonify({'message': f'{filename} ist jetzt aktiv'})
+
+
+@app.route('/list-configs', methods=['GET'])
+def list_configs():
+    files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith(('.yml', '.yaml'))]
+    active = session.get('active_config')
+    return jsonify({'files': files, 'active': active})
+def get_config():
+    active = session.get('active_config', 'default.yaml')
+    with open(os.path.join(UPLOAD_FOLDER, active)) as f:
+        return yaml.safe_load(f)
 
 
 if __name__ == "__main__":
