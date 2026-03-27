@@ -7,7 +7,7 @@ import csv
 from pathlib import Path
 from email.utils import parseaddr
 from datetime import datetime, timedelta
-
+from Server.Flask.config_manager import get_config
 def get_latest_db() -> Path:
     folder = Path("databases")
     dbs = sorted(
@@ -17,8 +17,8 @@ def get_latest_db() -> Path:
     if not dbs:
         raise FileNotFoundError("Keine campaign*.db Datenbank gefunden!")
     return dbs[-1]
-
-with open("../Server/Datenbanken/cpgn1.yaml", "r", encoding="utf-8") as file:
+yaml_file = get_config()
+with open(f"../Server/Datenbanken/{yaml_file}", "r", encoding="utf-8") as file:
     config_cpgn = yaml.safe_load(file)
 # 1. Verbindung zum Server herstellen
 IMAP_SERVER = 'imap.gmail.com'  # Beispiel: Gmail

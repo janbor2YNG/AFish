@@ -9,7 +9,9 @@ import time
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-with open("../Server/Datenbanken/cpgn1.yaml", "r", encoding="utf-8") as file:
+from Server.Flask.config_manager import get_config
+yaml_file = get_config()
+with open(f"../Server/Datenbanken/{yaml_file}", "r", encoding="utf-8") as file:
     config_cpgn = yaml.safe_load(file)
 id = 0
 # Absender-Infos
@@ -21,7 +23,7 @@ SENDER_PASSWORD = "czqc rfzf qijm vvnf"
 START = config_cpgn["send"]["timeframe"]["start"]       # "01.01.2026"
 END = config_cpgn["send"]["timeframe"]["end"]           # "01.02.2026"
 MAIL_COUNT = config_cpgn["send"]["total_emails"]  # z.B. 100
-start_time = "15:58"
+start_time = "15:04"
 start_time_zum_rechnen = 14
 # Betreff
 subject = "PLATZHALTER"
