@@ -3,9 +3,8 @@ description: "Office-Style Mail an Fachlehrer"
 target:
   include_role:
   exclude_role:
-    - Putzfrau
   fach:
-  min_alter: 25
+  min_alter: 10
 mail_body_randomnes: true
 body_template:
   - test
