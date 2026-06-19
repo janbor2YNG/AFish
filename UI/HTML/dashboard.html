@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PhishDash — Campaign Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-<link rel="stylesheet" href="\UI\CSS\base.css">
+<link rel="stylesheet" href="/static/CSS/base.css">
 <style>
 body { display: flex; }
 
@@ -32,15 +31,15 @@ body { display: flex; }
 
 .mail-dots { display:flex;flex-wrap:wrap;gap:3px;max-width:240px; }
 .mail-dot  { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
-.dot-bestanden { background:var(--spring); }
-.dot-nicht     { background:rgba(255,255,255,.18); }
-.dot-failed    { background:#f87171; }
+.dot-reported { background:var(--spring); }
+.dot-nicht    { background:rgba(255,255,255,.18); }
+.dot-failed   { background:#f87171; }
 
 .mail-grid-detail { display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:320px;overflow-y:auto;padding-right:4px; }
 .mail-detail-item { background:rgba(255,255,255,.04);border-radius:var(--r-sm);padding:8px 10px;font-size:.78rem;text-align:center;border:1px solid rgba(255,255,255,.07); }
-.mail-detail-item.bestanden { border-color:rgba(5,220,127,.35);background:rgba(5,220,127,.07);color:var(--spring); }
-.mail-detail-item.failed    { border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.07);color:#f87171; }
-.mail-detail-item.nicht     { color:rgba(219,227,230,.4); }
+.mail-detail-item.reported { border-color:rgba(5,220,127,.35);background:rgba(5,220,127,.07);color:var(--spring); }
+.mail-detail-item.failed   { border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.07);color:#f87171; }
+.mail-detail-item.nicht    { color:rgba(219,227,230,.4); }
 .mail-detail-num { font-weight:700;font-size:.85rem; }
 
 .search-input-wrap { position:relative;flex:1;min-width:180px;max-width:320px; }
@@ -93,10 +92,11 @@ tbody tr { cursor:pointer; }
     <span class="topbar-title" id="topbar-title">Campaign</span>
     <div class="topbar-right">
       <span id="run-status" style="display:none;" class="badge badge-spring badge-dot">Läuft</span>
-      <button class="btn btn-sm btn-ghost" onclick="showSection('profile',document.querySelector('[data-sec=profile]'))">
+      <button class="btn btn-sm btn-ghost" onclick="showSection('profile',null)">
         <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Admin
       </button>
+      <a class="btn btn-sm btn-ghost" href="/logout">Logout</a>
     </div>
   </header>
 
@@ -120,10 +120,14 @@ tbody tr { cursor:pointer; }
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </label>
           <input type="file" id="yamlUpload" accept=".yaml,.yml" onchange="uploadYaml(event)">
-          <a href="/create-campaign" class="btn btn-secondary">
+          <button class="btn btn-secondary" onclick="createCampaign()">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Create Campaign
-          </a>
+          </button>
+          <button class="btn btn-ghost" onclick="checkResponses()" title="Inbox auf gemeldete Mails prüfen">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            Antworten prüfen
+          </button>
         </div>
 
         <div class="progress-wrap" id="progressWrap" style="display:none;">
@@ -144,7 +148,7 @@ tbody tr { cursor:pointer; }
         <div class="stat-tiles mt-md" id="campaignTiles" style="display:none;">
           <div class="stat-tile"><div class="stat-tile-val spring" id="tileTotal">—</div><div class="stat-tile-label">Total Mails</div></div>
           <div class="stat-tile"><div class="stat-tile-val" id="tileName" style="font-size:1rem;">—</div><div class="stat-tile-label">Campaign Name</div></div>
-          <div class="stat-tile"><div class="stat-tile-val" id="tileDuration">—</div><div class="stat-tile-label">Laufzeit (Tage)</div></div>
+          <div class="stat-tile"><div class="stat-tile-val" id="tileSent">—</div><div class="stat-tile-label">Versendet</div></div>
           <div class="stat-tile"><div class="stat-tile-val" id="tileStatus">—</div><div class="stat-tile-label">Status</div></div>
         </div>
       </div>
@@ -177,9 +181,9 @@ tbody tr { cursor:pointer; }
           <div class="select-wrap" style="min-width:180px;">
             <select onchange="filterStatus(this.value)" style="border-radius:var(--r-xl);font-size:.82rem;padding:10px 36px 10px 14px;">
               <option value="all">Alle Status</option>
-              <option value="bestanden">Bestanden</option>
-              <option value="gefailed">Gefailed</option>
-              <option value="nicht beantwortet">Nicht beantwortet</option>
+              <option value="reported">Gemeldet</option>
+              <option value="clicked">Geklickt</option>
+              <option value="no_response">Keine Reaktion</option>
             </select>
           </div>
         </div>
@@ -187,10 +191,10 @@ tbody tr { cursor:pointer; }
           <table id="userTable">
             <thead><tr>
               <th>Name</th><th>E-Mail</th>
-              <th>Bestanden</th><th>Gefailed</th><th>Nicht bearb.</th><th>Mails</th>
+              <th>Gemeldet</th><th>Geklickt</th><th>Keine Reaktion</th><th>Mails</th>
             </tr></thead>
             <tbody id="userTableBody">
-              <tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Lade Daten…</div></td></tr>
+              <tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Keine Kampagne ausgewählt</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -209,7 +213,7 @@ tbody tr { cursor:pointer; }
             <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event,'csv')">
               <svg class="upload-zone-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
               <div class="upload-zone-title">CSV hochladen</div>
-              <div class="upload-zone-sub">Drag & Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">name, lastname, email</code></div>
+              <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">email, name, lastname, age, role, sub1, sub2</code></div>
             </div>
           </label>
           <input type="file" id="csvUploadData" accept=".csv" onchange="handleCsvUpload(event)">
@@ -217,20 +221,20 @@ tbody tr { cursor:pointer; }
         </div>
         <div class="card gb">
           <h3 class="text-sm fw-bold" style="margin-bottom:4px;">Campaign (YAML)</h3>
-          <p class="text-xs text-muted" style="margin-bottom:16px;">Lade eine neue Campaign-YAML hoch oder erstelle eine neue.</p>
+          <p class="text-xs text-muted" style="margin-bottom:16px;">Lade eine neue Campaign-YAML hoch. Sie wird automatisch zur aktiven Konfiguration.</p>
           <label for="yamlUploadData">
             <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event,'yaml')">
               <svg class="upload-zone-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
               <div class="upload-zone-title">YAML hochladen</div>
-              <div class="upload-zone-sub">Drag & Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">.yaml / .yml</code></div>
+              <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">.yaml / .yml</code></div>
             </div>
           </label>
-          <input type="file" id="yamlUploadData" accept=".yaml,.yml" onchange="uploadYamlData(event)">
+          <input type="file" id="yamlUploadData" accept=".yaml,.yml" onchange="uploadYaml(event)">
           <div id="yamlStatus" class="mt-sm text-sm"></div>
-          <a href="/create-campaign" class="btn btn-secondary w-full mt-sm" style="justify-content:center;">
+          <button class="btn btn-secondary w-full mt-sm" style="justify-content:center;" onclick="createCampaign()">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Neue Campaign erstellen
-          </a>
+            Neue Campaign aus aktiver YAML erstellen
+          </button>
         </div>
       </div>
     </section>
@@ -239,11 +243,20 @@ tbody tr { cursor:pointer; }
       <div class="section-label">Konfiguration</div>
       <div class="section-title">Einstellungen</div>
       <div class="card gb" style="max-width:520px;">
-        <div class="form-group"><label>SMTP Server</label><input type="text" placeholder="mail.example.com"></div>
-        <div class="form-group"><label>SMTP Port</label><input type="text" placeholder="587"></div>
-        <div class="form-group"><label>Absender E-Mail</label><input type="email" placeholder="noreply@example.com"></div>
-        <div class="form-group"><label>API Endpoint</label><input type="text" placeholder="https://api.example.com"></div>
-        <button class="btn btn-primary" onclick="showToast('Einstellungen gespeichert')">Speichern</button>
+        <div class="form-group"><label>SMTP Server</label><input type="text" id="set_smtp_server" placeholder="smtp.gmail.com"></div>
+        <div class="form-group"><label>SMTP Port</label><input type="text" id="set_smtp_port" placeholder="587"></div>
+        <div class="form-group"><label>IMAP Server</label><input type="text" id="set_imap_server" placeholder="imap.gmail.com"></div>
+        <div class="form-group"><label>Absender E-Mail</label><input type="email" id="set_sender_email" placeholder="noreply@example.com"></div>
+        <div class="form-group"><label>Absender Passwort</label><input type="password" id="set_sender_password" placeholder="••••••••  (leer = unverändert)"></div>
+        <div class="form-group"><label>Betreff</label><input type="text" id="set_mail_subject" placeholder="Wichtige Information"></div>
+        <div class="form-group"><label>Tracking-Basis-URL</label><input type="text" id="set_tracking_base_url" placeholder="http://127.0.0.1:5000"></div>
+        <div class="form-group">
+          <label class="row gap-xs" style="cursor:pointer;align-items:center;">
+            <input type="checkbox" id="set_dry_run" style="width:auto;">
+            <span>Dry-Run (Simulation – es werden keine echten Mails versendet)</span>
+          </label>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
       </div>
     </section>
 
@@ -253,12 +266,10 @@ tbody tr { cursor:pointer; }
       <div class="card gb" style="max-width:520px;">
         <div class="row gap-md" style="margin-bottom:24px;">
           <div style="width:60px;height:60px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;color:var(--black);flex-shrink:0;">A</div>
-          <div><div class="fw-bold" style="font-size:1.05rem;">Admin</div><div class="text-xs text-muted">admin@example.com</div></div>
+          <div><div class="fw-bold" style="font-size:1.05rem;">Admin</div><div class="text-xs text-muted">Administrator</div></div>
         </div>
-        <div class="form-group"><label>Name</label><input type="text" value="Admin"></div>
-        <div class="form-group"><label>E-Mail</label><input type="email" value="admin@example.com"></div>
-        <div class="form-group"><label>Passwort ändern</label><input type="password" placeholder="••••••••"></div>
-        <button class="btn btn-primary" onclick="showToast('Profil gespeichert')">Speichern</button>
+        <div class="form-group"><label>Neues Admin-Passwort</label><input type="password" id="profile_password" placeholder="••••••••"></div>
+        <button class="btn btn-primary" onclick="saveProfile()">Passwort ändern</button>
       </div>
     </section>
 
@@ -284,37 +295,31 @@ tbody tr { cursor:pointer; }
 </div>
 
 <script>
-let campaigns=[],activeCampaign=null,campaignRunning=false;
-let allUsers=[],filteredUsers=[],currentPage=1;
+// ============================================================================
+//  AFish dashboard – fully wired to the Flask backend (no demo data anymore).
+//  Status values match the backend: reported / clicked / no_response.
+// ============================================================================
+let campaigns=[], activeCampaignId=null;
+let allUsers=[], filteredUsers=[], currentPage=1;
 const PAGE_SIZE=15;
-let overviewChart=null,mailChart=null,currentChartType='pie',statusFilter='all';
+let overviewChart=null, mailChart=null, currentChartType='pie', statusFilter='all';
+let lastStats=null, pollTimer=null;
 
-const FIRST=['Anna','Ben','Clara','David','Eva','Felix','Greta','Hannes','Ida','Jonas','Kira','Lukas','Mia','Noah','Olivia','Paul','Quinn','Rosa','Sam','Tina'];
-const LAST=['Müller','Schmidt','Schneider','Fischer','Weber','Meyer','Wagner','Becker','Schulz','Hoffmann'];
-const DOMS=['gmail.com','schuldorf.de','example.com','test.de','mail.de'];
-const STATI=['bestanden','nicht beantwortet','nicht beantwortet','nicht beantwortet','durchgefallen'];
-
-const DEMO=[
-  {id:1,name:'Jan',    lastname:'Harib',           email:'harib.kinski.net@gmail.com',mails:{mail_1:'bestanden'}},
-  {id:2,name:'Hannes', lastname:'Turbanningeninge', email:'hanurb@schuldorf.de',       mails:{}},
-  {id:3,name:'Max',    lastname:'Tischberger',      email:'jansch5@schuldorf.de',      mails:{}},
-];
-for(let i=4;i<=30;i++){
-  const fn=FIRST[(i-1)%FIRST.length],ln=LAST[(i-1)%LAST.length],dom=DOMS[i%DOMS.length];
-  const mails={};
-  for(let m=1;m<=Math.floor(Math.random()*5)+1;m++) mails[`mail_${m}`]=STATI[Math.floor(Math.random()*STATI.length)];
-  DEMO.push({id:i,name:fn,lastname:ln,email:`${fn.toLowerCase()}.${ln.toLowerCase()}@${dom}`,mails});
+// ── Generic API helper ────────────────────────────────────────────────────
+async function api(path, options){
+  const res = await fetch(path, options);
+  if(res.status===401){ window.location.href='/login'; throw new Error('unauthorized'); }
+  return res;
 }
+async function apiJson(path, options){ const r=await api(path,options); return r.json(); }
 
 window.addEventListener('DOMContentLoaded',()=>{
-  allUsers=DEMO; filteredUsers=[...allUsers];
-  renderUserTable(); renderCharts();
+  loadCampaigns();
+  loadSettings();
 });
 
-// ── Sidebar ──────────────────────────────────────
+// ── Sidebar / navigation ──────────────────────────────────────────────────
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('collapsed'); }
-
-// ── Navigation — use closest() so child clicks still work ──
 const SECTIONS={
   campaign:{el:'sec-campaign',title:'Campaign'},
   stats:   {el:'sec-stats',   title:'Statistiken'},
@@ -322,10 +327,8 @@ const SECTIONS={
   settings:{el:'sec-settings',title:'Einstellungen'},
   profile: {el:'sec-profile', title:'Profil'},
 };
-
 function showSection(key, el){
-  // el might be a child element if pointer-events aren't blocked — find the .nav-item
-  const navEl = el ? (el.closest ? el.closest('.nav-item') || el : el) : null;
+  const navEl = el ? (el.closest ? el.closest('.nav-item')||el : el) : null;
   Object.values(SECTIONS).forEach(s=>document.getElementById(s.el).style.display='none');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(SECTIONS[key].el).style.display='';
@@ -333,107 +336,189 @@ function showSection(key, el){
   if(navEl) navEl.classList.add('active');
 }
 
-// ── Campaign ──────────────────────────────────────
-function toggleCampaign(){
-  const btn=document.getElementById('startBtn');
-  if(!campaignRunning){
-    if(!activeCampaign&&document.getElementById('campaignSelect').value===''){showToast('Bitte zuerst eine Campaign wählen',true);return;}
-    campaignRunning=true;
-    btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> End Campaign`;
-    btn.style.background='#6b1111';btn.style.boxShadow='none';
-    document.getElementById('run-status').style.display='flex';
-    showToast('Campaign gestartet!');
-  } else {
-    campaignRunning=false;
-    btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start Campaign`;
-    btn.style.background='';btn.style.boxShadow='';
-    document.getElementById('run-status').style.display='none';
-    showToast('Campaign beendet.');
-  }
+// ── Campaign list / selection ─────────────────────────────────────────────
+async function loadCampaigns(){
+  try{
+    const data = await apiJson('/api/campaigns');
+    campaigns = data.campaigns||[];
+    const sel = document.getElementById('campaignSelect');
+    const previous = sel.value;
+    sel.innerHTML = '<option value="">— Kampagne wählen —</option>';
+    campaigns.forEach(c=>{
+      const opt=document.createElement('option');
+      opt.value=c.id; opt.textContent=`${c.name} (#${c.id})`;
+      sel.appendChild(opt);
+    });
+    if(previous && campaigns.find(c=>String(c.id)===previous)){ sel.value=previous; }
+    else if(campaigns.length){ sel.value=campaigns[campaigns.length-1].id; }
+    if(sel.value){ onCampaignChange(); }
+  }catch(e){ /* unauthorized handled in api() */ }
 }
 
 function onCampaignChange(){
   const val=document.getElementById('campaignSelect').value;
-  const camp=campaigns.find(c=>c.name===val);
-  if(!camp){document.getElementById('progressWrap').style.display='none';document.getElementById('campaignTiles').style.display='none';return;}
-  activeCampaign=camp; showCampaignDetails(camp);
+  activeCampaignId = val ? parseInt(val) : null;
+  if(!activeCampaignId){
+    document.getElementById('progressWrap').style.display='none';
+    document.getElementById('campaignTiles').style.display='none';
+    return;
+  }
+  refreshStatus();
+  loadStats();
 }
 
-function showCampaignDetails(camp){
-  document.getElementById('progressWrap').style.display='';
-  document.getElementById('campaignTiles').style.display='';
-  document.getElementById('tileTotal').textContent=camp.totalMails??'—';
-  document.getElementById('tileName').textContent=camp.name;
-  const start=camp.startDate?new Date(camp.startDate):null;
-  const end=camp.endDate?new Date(camp.endDate):null;
-  const today=new Date();
-  if(start&&end){
-    const total=Math.round((end-start)/86400000);
-    const pct=Math.max(0,Math.min(100,Math.round((today-start)/(end-start)*100)));
-    document.getElementById('tileDuration').textContent=total;
-    document.getElementById('progressFill').style.width=pct+'%';
-    document.getElementById('progressPct').textContent=pct+'%';
-    document.getElementById('progressStart').textContent=start.toLocaleDateString('de-DE');
-    document.getElementById('progressEnd').textContent=end.toLocaleDateString('de-DE');
-    document.getElementById('progressToday').textContent=`Heute (${today.toLocaleDateString('de-DE')})`;
-    const st=today<start?'Ausstehend':today>end?'Abgeschlossen':'Aktiv';
-    const stEl=document.getElementById('tileStatus');
-    stEl.textContent=st;stEl.style.color=st==='Aktiv'?'var(--spring)':st==='Abgeschlossen'?'#fbbf24':'var(--white)';
-  } else {
-    ['tileDuration','tileStatus'].forEach(id=>document.getElementById(id).textContent='—');
-    document.getElementById('progressFill').style.width='0%';
+async function refreshStatus(){
+  if(!activeCampaignId) return;
+  const c = await apiJson(`/api/campaigns/${activeCampaignId}/status`);
+  if(c.error) return;
+  showCampaignDetails(c);
+  const btn=document.getElementById('startBtn');
+  if(c.running){
+    btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Kampagne stoppen`;
+    btn.style.background='#6b1111';btn.style.boxShadow='none';
+    document.getElementById('run-status').style.display='flex';
+    if(!pollTimer) pollTimer=setInterval(()=>{refreshStatus();loadStats();},5000);
+  }else{
+    btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><polygon points="5 3 19 12 5 21 5 3"/></svg> Kampagne starten`;
+    btn.style.background='';btn.style.boxShadow='';
+    document.getElementById('run-status').style.display='none';
+    if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
   }
 }
 
-function uploadYaml(e){
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();r.onload=ev=>{try{addCampaignFromYaml(jsyaml.load(ev.target.result),f.name);}catch(err){showToast('YAML Parse-Fehler',true);}};r.readAsText(f);
-}
-function addCampaignFromYaml(data,filename){
-  const name=data.name||data.campaign_name||filename.replace(/\.ya?ml$/,'');
-  const camp={name,startDate:data.start_date||data.startDate||data.start||null,endDate:data.end_date||data.endDate||data.end||null,totalMails:data.total_mails||data.totalMails||data.mails||null};
-  campaigns.push(camp);
-  const sel=document.getElementById('campaignSelect');
-  const opt=document.createElement('option');opt.value=name;opt.textContent=name;sel.appendChild(opt);sel.value=name;
-  activeCampaign=camp;showCampaignDetails(camp);showToast(`Campaign "${name}" hinzugefügt`);
-  const ys=document.getElementById('yamlStatus');if(ys)ys.innerHTML=`<span style="color:var(--spring);">✓ ${name} geladen</span>`;
+function showCampaignDetails(c){
+  document.getElementById('progressWrap').style.display='';
+  document.getElementById('campaignTiles').style.display='';
+  document.getElementById('tileTotal').textContent=c.total_emails??'—';
+  document.getElementById('tileName').textContent=c.name||'—';
+  document.getElementById('tileSent').textContent=`${c.sent_count??0} / ${c.total_emails??0}`;
+  const labels={created:'Erstellt',running:'Aktiv',stopped:'Gestoppt',finished:'Abgeschlossen'};
+  const st=document.getElementById('tileStatus');
+  st.textContent=labels[c.status]||c.status||'—';
+  st.style.color=c.running?'var(--spring)':c.status==='finished'?'#fbbf24':'var(--white)';
+  document.getElementById('progressFill').style.width=(c.progress||0)+'%';
+  document.getElementById('progressPct').textContent=(c.progress||0)+'%';
+  document.getElementById('progressStart').textContent=c.start_date||'—';
+  document.getElementById('progressEnd').textContent=c.end_date||'—';
 }
 
-// ── Charts ────────────────────────────────────────
+async function toggleCampaign(){
+  if(!activeCampaignId){ showToast('Bitte zuerst eine Campaign wählen',true); return; }
+  const status = await apiJson(`/api/campaigns/${activeCampaignId}/status`);
+  const action = status.running ? 'stop' : 'start';
+  const res = await apiJson(`/api/campaigns/${activeCampaignId}/${action}`,{method:'POST'});
+  if(res.success){ showToast(action==='start'?'Campaign gestartet!':'Campaign gestoppt.'); }
+  else { showToast(res.message||'Aktion fehlgeschlagen',true); }
+  refreshStatus();
+}
+
+async function createCampaign(){
+  const res = await apiJson('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(res.success){
+    showToast(`Campaign #${res.campaign_id} erstellt`);
+    await loadCampaigns();
+    document.getElementById('campaignSelect').value=res.campaign_id;
+    onCampaignChange();
+  }else{ showToast(res.error||'Fehler beim Erstellen',true); }
+}
+
+async function checkResponses(){
+  if(!activeCampaignId){ showToast('Bitte zuerst eine Campaign wählen',true); return; }
+  const res=await apiJson(`/api/campaigns/${activeCampaignId}/check-responses`,{method:'POST'});
+  if(res.success){ showToast(`${res.updated} gemeldete Mails erfasst`); loadStats(); }
+  else{ showToast(res.message||'Prüfung fehlgeschlagen',true); }
+}
+
+// ── YAML / CSV uploads ────────────────────────────────────────────────────
+async function uploadConfigFile(file){
+  const fd=new FormData(); fd.append('yaml_file',file);
+  const res=await apiJson('/api/config/upload',{method:'POST',body:fd});
+  const ys=document.getElementById('yamlStatus');
+  if(res.success){
+    if(ys) ys.innerHTML=`<span style="color:var(--spring);">✓ ${res.filename} aktiv</span>`;
+    showToast(`Config "${res.filename}" geladen – jetzt "Create Campaign" klicken`);
+  }else{
+    if(ys) ys.innerHTML=`<span style="color:#f87171;">✗ ${res.error||'Fehler'}</span>`;
+    showToast(res.error||'Upload fehlgeschlagen',true);
+  }
+}
+function uploadYaml(e){ const f=e.target.files[0]; if(f) uploadConfigFile(f); e.target.value=''; }
+
+async function uploadCsvFile(file){
+  const fd=new FormData(); fd.append('csv_file',file);
+  const res=await apiJson('/api/users/upload',{method:'POST',body:fd});
+  const cs=document.getElementById('csvStatus');
+  if(res.success){
+    if(cs) cs.innerHTML=`<span style="color:var(--spring);">✓ ${res.count} User importiert</span>`;
+    showToast(`${res.count} User importiert`);
+  }else{
+    if(cs) cs.innerHTML=`<span style="color:#f87171;">✗ ${res.error||'Fehler'}</span>`;
+    showToast(res.error||'Upload fehlgeschlagen',true);
+  }
+}
+function handleCsvUpload(e){ const f=e.target.files[0]; if(f) uploadCsvFile(f); e.target.value=''; }
+function handleFileDrop(event,type){
+  event.preventDefault();
+  const f=event.dataTransfer.files[0]; if(!f) return;
+  if(type==='csv') uploadCsvFile(f); else if(type==='yaml') uploadConfigFile(f);
+  event.currentTarget.classList.remove('drag');
+}
+
+// ── Statistics ─────────────────────────────────────────────────────────────
+async function loadStats(){
+  if(!activeCampaignId) return;
+  const stats = await apiJson(`/api/campaigns/${activeCampaignId}/stats`);
+  if(stats.error) return;
+  lastStats = stats;
+  allUsers = stats.users||[];
+  filteredUsers = [...allUsers];
+  currentPage = 1;
+  renderUserTable();
+  renderCharts();
+}
+
 function renderCharts(){
+  if(!lastStats) return;
   const ctx1=document.getElementById('overviewChart').getContext('2d');
   const ctx2=document.getElementById('mailChart').getContext('2d');
-  let b=0,f=0,n=0;
-  allUsers.forEach(u=>Object.values(u.mails).forEach(v=>{if(v==='bestanden')b++;else if(v==='gefailed')f++;else n++;}));
-  if(overviewChart)overviewChart.destroy();
+  const t=lastStats.totals||{reported:0,clicked:0,no_response:0};
+  if(overviewChart) overviewChart.destroy();
   overviewChart=new Chart(ctx1,{
     type:currentChartType==='bar'?'bar':currentChartType,
-    data:{labels:['Bestanden','Gefailed','Nicht beantw.'],datasets:[{data:[b,f,n],backgroundColor:['rgba(5,220,127,.75)','rgba(248,113,113,.7)','rgba(255,255,255,.15)'],borderColor:['#05dc7f','#f87171','rgba(255,255,255,.2)'],borderWidth:2}]},
+    data:{labels:['Gemeldet','Geklickt','Keine Reaktion'],datasets:[{data:[t.reported,t.clicked,t.no_response],backgroundColor:['rgba(5,220,127,.75)','rgba(248,113,113,.7)','rgba(255,255,255,.15)'],borderColor:['#05dc7f','#f87171','rgba(255,255,255,.2)'],borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'rgba(219,227,230,.7)',font:{family:'Open Sauce One,sans-serif',size:11}}}},scales:currentChartType==='bar'?{x:{ticks:{color:'rgba(219,227,230,.6)'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'rgba(219,227,230,.6)'},grid:{color:'rgba(255,255,255,.05)'}}}:{}}
   });
-  const lbl=[],bd=[],fd=[],nd=[];
-  for(let i=1;i<=20;i++){const k=`mail_${i}`;let bv=0,fv=0,nv=0;allUsers.forEach(u=>{const v=u.mails[k];if(v==='bestanden')bv++;else if(v==='gefailed')fv++;else nv++;});lbl.push(`M${i}`);bd.push(bv);fd.push(fv);nd.push(nv);}
-  if(mailChart)mailChart.destroy();
+  const perMail=(lastStats.per_mail||[]).slice(0,20);
+  const lbl=perMail.map(m=>`M${m.wave}`);
+  const rep=perMail.map(m=>m.reported), clk=perMail.map(m=>m.clicked), nor=perMail.map(m=>m.no_response);
+  if(mailChart) mailChart.destroy();
   mailChart=new Chart(ctx2,{
-    type:'bar',data:{labels:lbl,datasets:[{label:'Bestanden',data:bd,backgroundColor:'rgba(5,220,127,.65)',borderRadius:3},{label:'Gefailed',data:fd,backgroundColor:'rgba(248,113,113,.65)',borderRadius:3},{label:'Nicht',data:nd,backgroundColor:'rgba(255,255,255,.12)',borderRadius:3}]},
+    type:'bar',data:{labels:lbl,datasets:[{label:'Gemeldet',data:rep,backgroundColor:'rgba(5,220,127,.65)',borderRadius:3},{label:'Geklickt',data:clk,backgroundColor:'rgba(248,113,113,.65)',borderRadius:3},{label:'Keine',data:nor,backgroundColor:'rgba(255,255,255,.12)',borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'rgba(219,227,230,.7)',font:{family:'Open Sauce One,sans-serif',size:10}}}},scales:{x:{stacked:true,ticks:{color:'rgba(219,227,230,.5)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{stacked:true,ticks:{color:'rgba(219,227,230,.5)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
   });
 }
 function setChartType(type,btn){currentChartType=type;document.querySelectorAll('.chart-toggle-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderCharts();}
 
-// ── Table ─────────────────────────────────────────
+// ── User table ─────────────────────────────────────────────────────────────
 function filterUsers(q){filteredUsers=allUsers.filter(u=>!q||`${u.name} ${u.lastname} ${u.email}`.toLowerCase().includes(q.toLowerCase()));currentPage=1;renderUserTable();}
-function filterStatus(v){statusFilter=v;filteredUsers=allUsers.filter(u=>{const vals=Object.values(u.mails);if(v==='bestanden')return vals.includes('bestanden');if(v==='gefailed')return vals.includes('gefailed');if(v==='nicht beantwortet')return vals.some(x=>x.includes('nicht'));return true;});currentPage=1;renderUserTable();}
-
+function filterStatus(v){
+  statusFilter=v;
+  filteredUsers=allUsers.filter(u=>{
+    if(v==='reported') return u.reported>0;
+    if(v==='clicked') return u.clicked>0;
+    if(v==='no_response') return u.no_response>0;
+    return true;
+  });
+  currentPage=1;renderUserTable();
+}
+function dotClass(v){ return v==='reported'?'dot-reported':v==='clicked'?'dot-failed':'dot-nicht'; }
 function renderUserTable(){
   const tbody=document.getElementById('userTableBody');
   const page=filteredUsers.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
   if(!page.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Keine Einträge</div></td></tr>`;renderPagination();return;}
   tbody.innerHTML=page.map(u=>{
-    const vals=Object.values(u.mails);
-    const bv=vals.filter(v=>v==='bestanden').length,fv=vals.filter(v=>v==='gefailed').length,nv=vals.filter(v=>v&&v.includes('nicht')).length;
-    const dots=Object.keys(u.mails).slice(0,30).map(k=>`<span class="mail-dot ${u.mails[k]==='bestanden'?'dot-bestanden':u.mails[k]==='gefailed'?'dot-failed':'dot-nicht'}" title="${k}: ${u.mails[k]}"></span>`).join('');
-    return `<tr onclick="openUserModal(${u.id})"><td><span class="fw-bold">${u.name} ${u.lastname}</span></td><td class="text-muted text-xs">${u.email}</td><td><span class="badge badge-spring">${bv}</span></td><td><span class="badge badge-danger">${fv}</span></td><td><span class="badge badge-neutral">${nv}</span></td><td><div class="mail-dots">${dots}</div></td></tr>`;
+    const dots=Object.keys(u.mails).slice(0,30).map(k=>`<span class="mail-dot ${dotClass(u.mails[k])}" title="${k}: ${u.mails[k]}"></span>`).join('');
+    return `<tr onclick="openUserModal(${u.id})"><td><span class="fw-bold">${u.name} ${u.lastname}</span></td><td class="text-muted text-xs">${u.email}</td><td><span class="badge badge-spring">${u.reported}</span></td><td><span class="badge badge-danger">${u.clicked}</span></td><td><span class="badge badge-neutral">${u.no_response}</span></td><td><div class="mail-dots">${dots}</div></td></tr>`;
   }).join('');
   renderPagination();
 }
@@ -448,37 +533,56 @@ function renderPagination(){
 }
 function goPage(p){if(p<1||p>Math.ceil(filteredUsers.length/PAGE_SIZE))return;currentPage=p;renderUserTable();}
 
-// ── User Modal ────────────────────────────────────
+// ── User modal ─────────────────────────────────────────────────────────────
 function openUserModal(id){
   const u=allUsers.find(x=>x.id===id);if(!u)return;
   document.getElementById('modalName').textContent=`${u.name} ${u.lastname}`;
   document.getElementById('modalEmail').textContent=u.email;
-  const vals=Object.values(u.mails);
-  const b=vals.filter(v=>v==='bestanden').length,f=vals.filter(v=>v==='gefailed').length,n=vals.filter(v=>v&&v.includes('nicht')).length;
-  document.getElementById('modalBadges').innerHTML=`<span class="badge badge-spring badge-dot">${b} Bestanden</span><span class="badge badge-danger badge-dot">${f} Gefailed</span><span class="badge badge-neutral badge-dot">${n} Nicht bearb.</span>`;
-  document.getElementById('modalMailGrid').innerHTML=Object.keys(u.mails).map(k=>{const v=u.mails[k];const cls=v==='bestanden'?'bestanden':v==='gefailed'?'failed':'nicht';return `<div class="mail-detail-item ${cls}"><div class="mail-detail-num">${v==='bestanden'?'✓':v==='gefailed'?'✗':'–'}</div><div style="font-size:.7rem;margin-top:2px;">Mail ${k.replace('mail_','')}</div></div>`;}).join('')||'<div class="text-muted text-sm">Keine Aktivität</div>';
+  document.getElementById('modalBadges').innerHTML=`<span class="badge badge-spring badge-dot">${u.reported} Gemeldet</span><span class="badge badge-danger badge-dot">${u.clicked} Geklickt</span><span class="badge badge-neutral badge-dot">${u.no_response} Keine Reaktion</span>`;
+  document.getElementById('modalMailGrid').innerHTML=Object.keys(u.mails).map(k=>{const v=u.mails[k];const cls=v==='reported'?'reported':v==='clicked'?'failed':'nicht';const sym=v==='reported'?'✓':v==='clicked'?'✗':'–';return `<div class="mail-detail-item ${cls}"><div class="mail-detail-num">${sym}</div><div style="font-size:.7rem;margin-top:2px;">Mail ${k.replace('mail_','')}</div></div>`;}).join('')||'<div class="text-muted text-sm">Keine Aktivität</div>';
   document.getElementById('userModal').classList.add('open');
 }
 function closeModal(){document.getElementById('userModal').classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 document.getElementById('userModal').addEventListener('click',e=>{if(e.target===document.getElementById('userModal'))closeModal();});
 
-// ── File Uploads ──────────────────────────────────
-function handleFileDrop(event,type){event.preventDefault();const f=event.dataTransfer.files[0];if(!f)return;if(type==='csv')processCsvFile(f);else if(type==='yaml')processYamlFile(f);event.target.classList.remove('drag');}
-function handleCsvUpload(e){if(e.target.files[0])processCsvFile(e.target.files[0]);}
-function processCsvFile(file){
-  const r=new FileReader();
-  r.onload=e=>{const lines=e.target.result.trim().split('\n');const users=[];lines.forEach((l,i)=>{if(i===0&&l.toLowerCase().includes('name'))return;const p=l.split(',').map(s=>s.trim().replace(/"/g,''));if(p.length>=3)users.push({id:allUsers.length+users.length+1,name:p[0],lastname:p[1],email:p[2],mails:{}});});if(users.length){allUsers=users;filteredUsers=[...allUsers];renderUserTable();renderCharts();document.getElementById('csvStatus').innerHTML=`<span style="color:var(--spring);">✓ ${users.length} User importiert</span>`;showToast(`${users.length} User importiert`);}};
-  r.readAsText(file);
+// ── Settings & profile ─────────────────────────────────────────────────────
+async function loadSettings(){
+  try{
+    const s=await apiJson('/api/settings');
+    document.getElementById('set_smtp_server').value=s.smtp_server||'';
+    document.getElementById('set_smtp_port').value=s.smtp_port||'';
+    document.getElementById('set_imap_server').value=s.imap_server||'';
+    document.getElementById('set_sender_email').value=s.sender_email||'';
+    document.getElementById('set_mail_subject').value=s.mail_subject||'';
+    document.getElementById('set_tracking_base_url').value=s.tracking_base_url||'';
+    document.getElementById('set_dry_run').checked=!!s.dry_run;
+  }catch(e){}
 }
-function uploadYamlData(e){if(e.target.files[0])processYamlFile(e.target.files[0]);}
-function processYamlFile(file){
-  const r=new FileReader();
-  r.onload=e=>{try{addCampaignFromYaml(jsyaml.load(e.target.result),file.name);}catch(err){const ys=document.getElementById('yamlStatus');if(ys)ys.innerHTML=`<span style="color:#f87171;">✗ Parse-Fehler</span>`;showToast('YAML Parse-Fehler',true);}};
-  r.readAsText(file);
+async function saveSettings(){
+  const payload={
+    smtp_server:document.getElementById('set_smtp_server').value,
+    smtp_port:document.getElementById('set_smtp_port').value,
+    imap_server:document.getElementById('set_imap_server').value,
+    sender_email:document.getElementById('set_sender_email').value,
+    sender_password:document.getElementById('set_sender_password').value,
+    mail_subject:document.getElementById('set_mail_subject').value,
+    tracking_base_url:document.getElementById('set_tracking_base_url').value,
+    dry_run:document.getElementById('set_dry_run').checked,
+  };
+  const res=await apiJson('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(res.success){ showToast('Einstellungen gespeichert'); document.getElementById('set_sender_password').value=''; }
+  else showToast('Speichern fehlgeschlagen',true);
+}
+async function saveProfile(){
+  const pw=document.getElementById('profile_password').value;
+  if(!pw){ showToast('Bitte ein Passwort eingeben',true); return; }
+  const res=await apiJson('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:pw})});
+  if(res.success){ showToast('Passwort geändert'); document.getElementById('profile_password').value=''; }
+  else showToast('Änderung fehlgeschlagen',true);
 }
 
-// ── Toast ─────────────────────────────────────────
+// ── Toast ──────────────────────────────────────────────────────────────────
 let toastTimer;
 function showToast(msg,error=false){
   const t=document.getElementById('toast'),icon=t.querySelector('svg');

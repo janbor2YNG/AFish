@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFish — Login</title>
+<link rel="stylesheet" href="/static/CSS/base.css">
+<style>
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-card { width:100%; max-width:360px; }
+  .login-logo { display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:24px; }
+  .login-logo .logo-mark { width:40px; height:40px; border-radius:10px; background:var(--gradient);
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--black); }
+  #loginError { color:#f87171; font-size:.85rem; margin-top:10px; min-height:1.2em; }
+</style>
+</head>
+<body>
+  <div class="card gb login-card">
+    <div class="login-logo">
+      <div class="logo-mark">AF</div>
+      <span style="font-size:1.2rem;font-weight:700;">AFish</span>
+    </div>
+    <div class="form-group">
+      <label>Passwort</label>
+      <input type="password" id="password" placeholder="••••••••" autofocus
+             onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary w-full" style="justify-content:center;" onclick="doLogin()">Anmelden</button>
+    <div id="loginError"></div>
+  </div>
+<script>
+async function doLogin(){
+  const password = document.getElementById('password').value;
+  const res = await fetch('/login', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ password })
+  });
+  if(res.ok){ window.location.href = '/'; }
+  else { document.getElementById('loginError').textContent = 'Falsches Passwort'; }
+}
+</script>
+</body>
+</html>
