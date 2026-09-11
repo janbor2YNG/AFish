@@ -41,12 +41,17 @@ neu starten.
    erstellen und hochladen (Anzahl Mail-Wellen, Zeitraum, verwendete Templates).
 3. **Templates** (Bereich „Templates"): vorhandene Szenarien ansehen oder eigene `.html`-Datei
    hinzufügen. Der Dateiname bestimmt die Kategorie (Teil vor dem ersten `-`), z. B.
-   `office-login.html` → Kategorie `office`.
+   `office-login.html` → Kategorie `office`. Der Mail-**Betreff** ist keine Einstellung, sondern
+   steht im `<title>`-Tag der jeweiligen Template-Datei — eine neue Datei mit neuem `<title>`
+   hochladen genügt, ohne irgendwo anders etwas anpassen zu müssen.
 4. **Absenderprofile**: in `Server/Datenbanken/sender_profiles.yaml` pro Kategorie hinterlegt
    (Anzeigename + Absenderadresse). **Vor dem produktiven Einsatz müssen die Platzhalteradressen
    durch echte, für das Projekt autorisierte Absenderadressen ersetzt werden.**
 5. **Kampagne starten**: verteilt die Mail-Wellen automatisch über den gewählten Zeitraum.
-6. **Auswertung** (Bereich „Statistiken"): Live-Zahlen, Tabelle je Lehrkraft, Excel-Download.
+6. **Auswertung** (Bereich „Statistiken"): Live-Zahlen, Tabelle je Lehrkraft. „Ergebnisse
+   herunterladen" lädt zwei Dateien: die ausgewertete Excel-Datei (mit berechneten Quoten) und eine
+   rohe CSV mit den unverarbeiteten Zahlen pro Lehrkraft, damit sich die Auswertung bei Bedarf
+   unabhängig nachrechnen lässt.
 7. **Vergleich** (Bereich „Vergleich"): Klick-/Melderate über mehrere Trainingsdurchgänge hinweg.
 
 ## Wie ein Klick erkannt wird
