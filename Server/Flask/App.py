@@ -21,6 +21,14 @@ from flask import (
     send_from_directory, send_file, url_for,
 )
 
+# When stdout is redirected to a log file (nohup, systemd, ...) rather than a
+# terminal, Python fully buffers it by default - every print() in this app
+# and in the engine modules (mail_sender/mail_reader/campaign_runner all log
+# via plain print()) can then sit unflushed for a long time, making the logs
+# useless for diagnosing "nothing happened" reports. Force line buffering so
+# log lines show up as they happen.
+sys.stdout.reconfigure(line_buffering=True)
+
 # Local (Server/Flask) + engine (Python/) imports.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)  # so config_manager resolves regardless of cwd
@@ -125,15 +133,20 @@ def click(campaign_id, token):
     try:
         db_path = mail_reader.get_db_path(campaign_id)
     except FileNotFoundError:
+        print(f"[click] campaign {campaign_id} has no database (deleted/reset?) - "
+              f"token {token} ignored, link is stale")
         return redirect(url_for("awareness"))
 
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
+        cursor = conn.execute(
             """UPDATE events SET status = ?, clicked_at = ?
                WHERE token = ? AND status != ?""",
             (cfg.STATUS_CLICKED, datetime.now().isoformat(timespec="seconds"),
              token, cfg.STATUS_REPORTED),
         )
+        if cursor.rowcount == 0:
+            print(f"[click] campaign {campaign_id}: token not found (or already reported) "
+                  f"- link is stale or was already correctly reported")
     return redirect(url_for("awareness"))
 
 
@@ -364,4 +377,17 @@ def update_settings():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Bound to localhost and debug-off by default. For recipients on other
+    # machines to reach /click links (and for the report-inbox check to be
+    # testable end to end), the server needs to listen on the school
+    # network's actual address - set AFISH_HOST=0.0.0.0 (or the server's LAN
+    # IP) and make sure "Tracking-Basis-URL" in den Einstellungen points at
+    # that same address, not 127.0.0.1. Leave AFISH_DEBUG unset (or "false")
+    # outside of local development: Flask's debug mode (a) can expose an
+    # interactive code-execution debugger to anyone who can reach the
+    # server, and (b) auto-restarts the whole process on file changes, which
+    # silently kills the background campaign-sending/report-checking thread.
+    host = os.environ.get("AFISH_HOST", "127.0.0.1")
+    port = int(os.environ.get("AFISH_PORT", "5000"))
+    debug = os.environ.get("AFISH_DEBUG", "false").lower() == "true"
+    app.run(host=host, port=port, debug=debug)
