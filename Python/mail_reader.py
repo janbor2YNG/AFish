@@ -1,10 +1,9 @@
-"""Read the support inbox and mark forwarded/reported phishing mails.
+"""Read the support/report inbox and mark forwarded/reported phishing mails.
 
-REFACTORED from the former ``MailRead.py``: module-level code and hard-coded
-credentials removed; the logic is wrapped in ``check_responses()``. When a
-teacher forwards/reports a simulation mail, the body still contains the
-``mh<wave>`` marker; matching that to the sender marks ``mail_<wave>`` as
-``reported`` (= recognised the phishing) for that user.
+When a teacher forwards/reports a simulation mail, the body still contains the
+discreet reference marker from the template footer (e.g. ``Ref: TRX-3``).
+Matching that wave number to the sender's address marks the matching ``events``
+row as ``reported`` (= recognised the phishing simulation).
 """
 
 import os
@@ -21,6 +20,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, "..", "Server", "Flask"))
 
 import config_manager as cfg  # noqa: E402
+
+MARKER_RE = re.compile(r"\bTRX-(\d+)\b", re.IGNORECASE)
 
 
 def get_db_path(campaign_id=None) -> Path:
@@ -57,10 +58,26 @@ def _extract_body(msg):
     return msg.get_payload(decode=True).decode(charset, errors="replace")
 
 
-def check_responses(campaign_id=None, settings=None, logger=print):
-    """Scan the inbox for reported mails and update the campaign DB.
+def mark_reported(db_path, sender_email, wave_nr, when):
+    """Mark the (user, wave) event as reported. Returns True if a row was updated."""
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE email = ?", (sender_email,))
+        user = cursor.fetchone()
+        if not user:
+            return False
+        cursor.execute(
+            """UPDATE events SET status = ?, reported_at = ?
+               WHERE user_id = ? AND wave = ?""",
+            (cfg.STATUS_REPORTED, when, user[0], wave_nr),
+        )
+        return cursor.rowcount > 0
 
-    Returns the number of users marked as ``reported``. Skipped in dry-run mode.
+
+def check_responses(campaign_id=None, settings=None, logger=print):
+    """Scan the report inbox for forwarded mails and update the campaign DB.
+
+    Returns the number of events marked as ``reported``. Skipped in dry-run mode.
     """
     settings = settings or cfg.get_settings()
     if settings.get("dry_run", True):
@@ -86,28 +103,15 @@ def check_responses(campaign_id=None, settings=None, logger=print):
         sender_email = parseaddr(msg["From"])[1]
         body = _extract_body(msg)
 
-        match = re.search(r"\bmh(\d+)\b", body, re.IGNORECASE)
+        match = MARKER_RE.search(body)
         if not match:
             continue
 
         wave_nr = int(match.group(1))
-        column = f"mail_{wave_nr}"
-        with sqlite3.connect(db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(users)")
-            columns = [row[1] for row in cursor.fetchall()]
-            if column not in columns:
-                continue
-            cursor.execute("SELECT id FROM users WHERE email = ?", (sender_email,))
-            user = cursor.fetchone()
-            if not user:
-                continue
-            cursor.execute(
-                f"UPDATE users SET {column} = ? WHERE id = ?",
-                (cfg.STATUS_REPORTED, user[0]),
-            )
+        now = datetime.now().isoformat(timespec="seconds")
+        if mark_reported(db_path, sender_email, wave_nr, now):
             updated += 1
-            logger(f"{sender_email} -> {column} = {cfg.STATUS_REPORTED}")
+            logger(f"{sender_email} -> wave {wave_nr} = {cfg.STATUS_REPORTED}")
 
     mail.logout()
     return updated

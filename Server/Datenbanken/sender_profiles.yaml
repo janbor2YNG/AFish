@@ -1,0 +1,24 @@
+# Absenderprofile fuer die Phishing-Simulation.
+#
+# Der Schluessel (office / google / schulleitung / ...) ist die Kategorie und
+# entspricht dem Teil des Template-Dateinamens vor dem ersten "-".
+# Beispiel: Template "office-login.html" -> Kategorie "office" -> dieses Profil.
+#
+# WICHTIG: Die E-Mail-Adressen unten sind PLATZHALTER. Vor dem produktiven
+# Einsatz müssen sie durch echte, fuer das Projekt registrierte und autorisierte
+# Absenderadressen ersetzt werden (z.B. eine eigene Subdomain der Schule oder
+# eine dediziert dafuer angelegte Domain). Es duerfen ausschliesslich Domains
+# verwendet werden, die dem Projekt gehoeren oder ausdruecklich freigegeben sind
+# - niemals echte fremde Marken- oder Firmendomains.
+
+office:
+  name: "IT-Support"
+  email: "it-support@simulation.schule-intern.example"  # TODO: echte autorisierte Absenderadresse eintragen
+
+google:
+  name: "Konto-Sicherheitsdienst"
+  email: "sicherheit@simulation.schule-intern.example"  # TODO: echte autorisierte Absenderadresse eintragen
+
+schulleitung:
+  name: "Schulleitung"
+  email: "verwaltung@simulation.schule-intern.example"  # TODO: echte autorisierte Absenderadresse eintragen

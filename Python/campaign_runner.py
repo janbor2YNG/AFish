@@ -1,10 +1,10 @@
 """Background campaign runner.
 
-NEW module: drives a campaign from the web UI. Starting a campaign launches a
-background thread that sends the waves that are *due* (according to the YAML
-timeframe distribution) and keeps polling until the campaign is finished or
-stopped. State is mirrored into the ``campaign_meta`` table so the dashboard can
-display live progress, and survives even though the thread itself does not.
+Starting a campaign launches a background thread that sends the waves that are
+*due* (according to the YAML timeframe distribution) and keeps polling until the
+campaign is finished or stopped. State is mirrored into the ``campaign_meta``
+table so the dashboard can display live progress, and survives even though the
+thread itself does not.
 """
 
 import os
@@ -64,18 +64,19 @@ def get_status(campaign_id):
     if not meta:
         return None
     running = is_running(campaign_id)
-    total = meta.get("total_emails") or 0
-    sent = meta.get("sent_count") or 0
+    total = meta.get("total_waves") or 0
+    sent = meta.get("waves_sent") or 0
     return {
         "id": campaign_id,
         "name": meta.get("name"),
         "status": "running" if running else meta.get("status"),
         "running": running,
-        "sent_count": sent,
-        "total_emails": total,
+        "waves_sent": sent,
+        "total_waves": total,
         "progress": round(sent / total * 100) if total else 0,
         "start_date": meta.get("start_date"),
         "end_date": meta.get("end_date"),
+        "created_at": meta.get("created_at"),
     }
 
 
@@ -86,7 +87,7 @@ def _run_loop(campaign_id, stop_event):
         return
     config = cfg.load_config(meta.get("config_file"))
     settings = cfg.get_settings()
-    total = meta.get("total_emails") or 0
+    total = meta.get("total_waves") or 0
     start = meta.get("start_date")
     end = meta.get("end_date")
     plan = mail_sender.build_distribution_plan(start, end, total)
@@ -95,7 +96,7 @@ def _run_loop(campaign_id, stop_event):
 
     while not stop_event.is_set():
         meta = _read_meta(campaign_id)
-        sent = meta.get("sent_count") or 0
+        sent = meta.get("waves_sent") or 0
         due = min(mail_sender.waves_due_by(plan), total)
 
         while sent < due and not stop_event.is_set():
@@ -105,7 +106,7 @@ def _run_loop(campaign_id, stop_event):
             except Exception as exc:  # keep the runner alive on send errors
                 print(f"[runner] campaign {campaign_id} wave {wave_id} error: {exc}")
             sent += 1
-            _update_meta(campaign_id, sent_count=sent)
+            _update_meta(campaign_id, waves_sent=sent)
             stop_event.wait(WAVE_INTERVAL_SECONDS)
 
         # Pull in any reported mails (no-op in dry-run mode).
