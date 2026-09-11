@@ -20,6 +20,20 @@ Dry-Run deaktiviert wird, verschickt das System tatsächlich Mails.
 
 Login-Passwort initial: `admin` (unter „Einstellungen" → „Profil" sofort ändern).
 
+**Für Tests über mehrere Rechner/Netzwerke hinweg** reicht `127.0.0.1` nicht aus — damit
+Empfänger auf anderen Geräten den `/click`-Link überhaupt erreichen können, muss der Server auf
+einer im Netzwerk erreichbaren Adresse lauschen **und** „Tracking-Basis-URL" unter „Einstellungen"
+auf genau diese Adresse zeigen (nicht auf `127.0.0.1`):
+
+```bash
+AFISH_HOST=0.0.0.0 AFISH_PORT=5000 python Server/Flask/App.py
+```
+
+`AFISH_DEBUG=true` nur für die lokale Entwicklung setzen — im Debug-Modus ist ein interaktiver
+Code-Ausführungs-Debugger erreichbar, sobald der Server von außen erreichbar ist, und der
+automatische Reloader kann den Hintergrund-Thread (Mail-Versand + Report-Prüfung) unbemerkt
+neu starten.
+
 ## Ablauf einer Kampagne
 
 1. **Empfänger** (Bereich „Daten"): CSV mit Spalten `name,email,gruppe` hochladen (nur `email` ist Pflicht).
@@ -27,12 +41,17 @@ Login-Passwort initial: `admin` (unter „Einstellungen" → „Profil" sofort �
    erstellen und hochladen (Anzahl Mail-Wellen, Zeitraum, verwendete Templates).
 3. **Templates** (Bereich „Templates"): vorhandene Szenarien ansehen oder eigene `.html`-Datei
    hinzufügen. Der Dateiname bestimmt die Kategorie (Teil vor dem ersten `-`), z. B.
-   `office-login.html` → Kategorie `office`.
+   `office-login.html` → Kategorie `office`. Der Mail-**Betreff** ist keine Einstellung, sondern
+   steht im `<title>`-Tag der jeweiligen Template-Datei — eine neue Datei mit neuem `<title>`
+   hochladen genügt, ohne irgendwo anders etwas anpassen zu müssen.
 4. **Absenderprofile**: in `Server/Datenbanken/sender_profiles.yaml` pro Kategorie hinterlegt
    (Anzeigename + Absenderadresse). **Vor dem produktiven Einsatz müssen die Platzhalteradressen
    durch echte, für das Projekt autorisierte Absenderadressen ersetzt werden.**
 5. **Kampagne starten**: verteilt die Mail-Wellen automatisch über den gewählten Zeitraum.
-6. **Auswertung** (Bereich „Statistiken"): Live-Zahlen, Tabelle je Lehrkraft, Excel-Download.
+6. **Auswertung** (Bereich „Statistiken"): Live-Zahlen, Tabelle je Lehrkraft. „Ergebnisse
+   herunterladen" lädt zwei Dateien: die ausgewertete Excel-Datei (mit berechneten Quoten) und eine
+   rohe CSV mit den unverarbeiteten Zahlen pro Lehrkraft, damit sich die Auswertung bei Bedarf
+   unabhängig nachrechnen lässt.
 7. **Vergleich** (Bereich „Vergleich"): Klick-/Melderate über mehrere Trainingsdurchgänge hinweg.
 
 ## Wie ein Klick erkannt wird
@@ -48,7 +67,27 @@ abgefragt.
 Leitet eine Lehrkraft die Simulationsmail an die konfigurierte interne Meldeadresse weiter, sucht
 das System (per IMAP) im Postfach nach der Referenznummer in der Mail-Fußzeile (`Referenz: TRX-<n>`)
 und markiert das zugehörige Ereignis als „korrekt gemeldet" — das gewinnt immer gegenüber einem
-vorherigen Klick.
+vorherigen Klick. Die Prüfung nutzt den Zeitraum, der in der jeweiligen Kampagne selbst hinterlegt
+ist (nicht die aktuell "aktive" YAML-Datei), damit sie auch dann korrekt bleibt, wenn zwischendurch
+eine andere Kampagne hochgeladen wurde.
+
+### Wenn ein Klick oder eine Meldung nicht ankommt
+
+Beide Fälle scheitern **ohne sichtbaren Fehler für den Absender** — die Seite leitet trotzdem immer
+zur Info-Seite weiter bzw. das manuelle Prüfen meldet trotzdem `success`. Im Server-Log (Konsole, in
+der `App.py` läuft) steht dafür jeweils eine konkrete Zeile:
+
+- `[click] campaign … has no database` bzw. `token not found` → der Link war veraltet (z. B. weil
+  `Python/databases/` zwischen zwei Testläufen gelöscht/zurückgesetzt wurde). Für einen neuen
+  Testlauf immer eine frische Kampagne erstellen und den Link aus der **neu** versendeten Mail
+  verwenden, nicht eine alte Mail aus einem vorherigen Lauf erneut anklicken.
+- `[check_responses] … scanning N message(s)` → zeigt, wie viele Mails im konfigurierten Zeitraum
+  überhaupt gefunden wurden; `marker … found but no matching (user, wave) event` → die Referenznummer
+  wurde gefunden, aber der Absender/die Welle passt zu keinem Ereignis dieser Kampagne (z. B. weil
+  die Meldung eigentlich zu einer anderen, gleichzeitig laufenden Kampagne gehört).
+- Ein `/click`-Link funktioniert nur, wenn der Server unter einer für den Empfänger erreichbaren
+  Adresse läuft (siehe „Für Tests über mehrere Rechner/Netzwerke hinweg" oben) — `127.0.0.1`
+  funktioniert erwartungsgemäß nur auf dem Rechner, auf dem der Server selbst läuft.
 
 ## Betrieb & Datenschutz
 

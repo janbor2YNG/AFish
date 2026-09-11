@@ -69,6 +69,23 @@ def load_template(name):
         return f.read()
 
 
+TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+DEFAULT_SUBJECT = "Wichtige Information"
+
+
+def extract_subject(template_html):
+    """The mail subject is not configurable in Settings - it comes from the
+    template's own <title> tag, so the subject always matches whatever
+    template was actually used (uploading a new template with a new subject
+    just works, without touching Settings at all). Falls back to a generic
+    default if a template has no <title>."""
+    match = TITLE_RE.search(template_html)
+    if not match:
+        return DEFAULT_SUBJECT
+    subject = re.sub(r"\s+", " ", match.group(1)).strip()
+    return subject or DEFAULT_SUBJECT
+
+
 def get_recipients(db_path):
     """Return the campaign's recipients as a list of dicts."""
     with sqlite3.connect(db_path) as conn:
@@ -111,7 +128,7 @@ def send_wave(wave_id, db_path, config, settings=None, logger=print):
     template_name = choose_template(config)
     template = load_template(template_name)
     category, sender = cfg.get_sender_for_template(template_name)
-    subject = settings.get("mail_subject", "Wichtige Information")
+    subject_template = extract_subject(template)
     base_url = settings.get("tracking_base_url", "http://127.0.0.1:5000")
     dry_run = settings.get("dry_run", True)
     now = datetime.now().isoformat(timespec="seconds")
@@ -128,6 +145,13 @@ def send_wave(wave_id, db_path, config, settings=None, logger=print):
             token = secrets.token_urlsafe(16)
             link = _build_link(base_url, campaign_id, token)
             body = template.format(id=wave_id, name=r["name"], user_mail=r["email"], link=link)
+            try:
+                subject = subject_template.format(id=wave_id, name=r["name"], user_mail=r["email"])
+            except (KeyError, IndexError):
+                # A custom template's <title> may contain a stray "{"/"}" that
+                # isn't meant as a placeholder - fall back to it verbatim
+                # rather than failing the whole send.
+                subject = subject_template
 
             if dry_run:
                 logger(f"[DRY-RUN] Wave {wave_id}: would send '{template_name}' to {r['email']}")
