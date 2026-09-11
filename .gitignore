@@ -4,10 +4,14 @@ __pycache__/
 venv/
 .venv/
 
+# IDE
+.idea/
+
 # Runtime / local state (not part of the source)
 Python/databases/
 Server/Flask/active_config.txt
 Server/Datenbanken/settings.json
+Server/Datenbanken/current_user_list.csv
 
 # Secrets
 secretthings.py
