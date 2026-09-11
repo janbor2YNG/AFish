@@ -42,13 +42,16 @@ STATUS_REPORTED = "reported"        # teacher forwarded/reported the mail  -> su
 STATUS_VALUES = (STATUS_PENDING, STATUS_SENT, STATUS_CLICKED, STATUS_REPORTED)
 
 # Default settings used when settings.json does not exist yet.
+# NOTE: the mail subject is intentionally not a setting here - it comes from
+# each template's own <title> tag (see mail_sender.extract_subject), so a new
+# template's subject just works without anyone having to remember to also
+# update it in Settings.
 DEFAULT_SETTINGS = {
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
     "sender_email": "",
     "sender_password": "",
     "imap_server": "imap.gmail.com",
-    "mail_subject": "Wichtige Information",
     "tracking_base_url": "http://127.0.0.1:5000",
     "dry_run": True,            # default: simulate, do NOT send/read real mail
     "admin_password": "admin",  # plain text, change via settings UI

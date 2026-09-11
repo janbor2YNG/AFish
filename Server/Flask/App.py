@@ -7,6 +7,7 @@ endpoints.
 """
 
 import os
+import io
 import sys
 import csv
 import time
@@ -18,7 +19,7 @@ from pathlib import Path
 
 from flask import (
     Flask, request, jsonify, session, redirect,
-    send_from_directory, send_file, url_for,
+    send_from_directory, send_file, url_for, Response,
 )
 
 # When stdout is redirected to a log file (nohup, systemd, ...) rather than a
@@ -239,6 +240,35 @@ def campaign_export(campaign_id):
     return send_file(
         buf, as_attachment=True, download_name=name,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/campaigns/<int:campaign_id>/export-raw.csv", methods=["GET"])
+@login_required
+def campaign_export_raw(campaign_id):
+    """Plain per-teacher raw-numbers CSV - exactly the counts shown in the
+    Statistiken table (received/clicked/reported), with no percentages or
+    other computed values, so the evaluation can be independently
+    recalculated from first principles rather than trusting the Excel export."""
+    data = stats_mod.campaign_stats(campaign_id)
+    if data is None:
+        return jsonify({"error": "Kampagne nicht gefunden"}), 404
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Name", "E-Mail", "Gruppe", "Mails erhalten", "Geklickt",
+                      "Korrekt gemeldet", "Mehrfach nicht erkannt"])
+    for u in data["users"]:
+        writer.writerow([
+            u["name"], u["email"], u["gruppe"] or "", u["sent"], u["clicked"],
+            u["reported"], "Ja" if u["repeat_fail"] else "Nein",
+        ])
+
+    name = f"kampagne-{campaign_id}-rohdaten.csv"
+    # utf-8-sig so Excel opens umlauts correctly instead of guessing the wrong encoding.
+    return Response(
+        buf.getvalue().encode("utf-8-sig"), mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
 
 
