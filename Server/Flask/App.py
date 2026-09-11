@@ -1,25 +1,24 @@
-"""AFish – central Flask application.
+"""AFish - central Flask application.
 
 This is the single entry point that hosts the whole phishing-simulation tool:
 admin authentication, the dashboard, all JSON APIs (campaigns, stats, users,
-config, settings) and the public phishing-tracking endpoints.
-
-REWORKED from the original App.py: the engine scripts in ``Python/`` are now
-imported and driven from here, every dashboard control has a matching endpoint,
-and the German status values were replaced by the English ones from
-``config_manager``.
+templates, config, settings), the Excel export and the public phishing-tracking
+endpoints.
 """
 
 import os
 import sys
 import csv
+import time
+import secrets
 import sqlite3
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
 from flask import (
     Flask, request, jsonify, session, redirect,
-    send_from_directory, url_for,
+    send_from_directory, send_file, url_for,
 )
 
 # Local (Server/Flask) + engine (Python/) imports.
@@ -31,6 +30,8 @@ import config_manager as cfg          # noqa: E402
 import data_creator                   # noqa: E402
 import mail_reader                    # noqa: E402
 import campaign_runner                # noqa: E402
+import stats as stats_mod             # noqa: E402
+import excel_export                   # noqa: E402
 
 HTML_DIR = os.path.join(cfg.REPO_ROOT, "UI", "HTML")
 
@@ -39,10 +40,25 @@ app = Flask(
     static_folder=os.path.join(cfg.REPO_ROOT, "UI"),
     static_url_path="/static",
 )
-app.secret_key = "afish-internal-secret"  # dev tool – plain session secret
+# Session secret: must come from the environment on a real deployment (never
+# commit a secret to source). Falls back to a random per-process key so the
+# app still starts for local/dry-run use - existing sessions just won't
+# survive a restart in that case.
+app.secret_key = os.environ.get("AFISH_SECRET_KEY") or secrets.token_hex(32)
+if not os.environ.get("AFISH_SECRET_KEY"):
+    print("[AFish] AFISH_SECRET_KEY not set - using a random session secret "
+          "for this process only. Set it in the environment for production use.")
 
 
 # --- Authentication --------------------------------------------------------
+# Very small in-memory brute-force guard: block an IP for a while after too
+# many failed logins in a row. Simple on purpose - no extra dependency, and
+# a restart of the internal server resets it, which is acceptable here.
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 60
+_login_attempts = {}  # ip -> (fail_count, locked_until_timestamp)
+
+
 def login_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
@@ -61,11 +77,23 @@ def login_page():
 
 @app.route("/login", methods=["POST"])
 def login():
+    ip = request.remote_addr or "unknown"
+    fail_count, locked_until = _login_attempts.get(ip, (0, 0))
+    if time.time() < locked_until:
+        wait = int(locked_until - time.time())
+        return jsonify({"success": False,
+                         "message": f"Zu viele Fehlversuche, bitte {wait}s warten."}), 429
+
     data = request.get_json(silent=True) or request.form
     password = data.get("password", "")
     if password == cfg.get_setting("admin_password"):
         session["logged_in"] = True
+        _login_attempts.pop(ip, None)
         return jsonify({"success": True})
+
+    fail_count += 1
+    locked_until = time.time() + LOGIN_LOCKOUT_SECONDS if fail_count >= LOGIN_MAX_ATTEMPTS else 0
+    _login_attempts[ip] = (fail_count, locked_until)
     return jsonify({"success": False, "message": "Falsches Passwort"}), 401
 
 
@@ -83,20 +111,30 @@ def dashboard():
 
 
 # --- Public phishing tracking ---------------------------------------------
-@app.route("/track")
-def track():
-    """Public landing page reached when a teacher clicks the phishing link.
+@app.route("/click/<int:campaign_id>/<token>")
+def click(campaign_id, token):
+    """Public landing hit when a teacher clicks the simulated phishing link.
 
-    Serves a tiny page that runs the tracking script (records the click) and
-    then forwards to the awareness page. No login required by design.
+    The URL carries only an opaque per-message token - no recipient e-mail
+    address, name or wave number - so nothing personal leaks into browser
+    history, server access logs or intermediate proxies. Marks the matching
+    event as ``clicked`` (unless it was already correctly ``reported``, which
+    always wins) and forwards straight to the awareness page. No real
+    credentials are ever requested. No login required by design.
     """
-    return (
-        "<!doctype html><html lang='de'><head><meta charset='utf-8'>"
-        "<title>Weiterleitung…</title></head><body>"
-        "<script src='/fakeWebsiteBackend.js'></script>"
-        "<p style='font-family:sans-serif'>Einen Moment bitte…</p>"
-        "</body></html>"
-    )
+    try:
+        db_path = mail_reader.get_db_path(campaign_id)
+    except FileNotFoundError:
+        return redirect(url_for("awareness"))
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """UPDATE events SET status = ?, clicked_at = ?
+               WHERE token = ? AND status != ?""",
+            (cfg.STATUS_CLICKED, datetime.now().isoformat(timespec="seconds"),
+             token, cfg.STATUS_REPORTED),
+        )
+    return redirect(url_for("awareness"))
 
 
 @app.route("/awareness")
@@ -107,114 +145,24 @@ def awareness():
         "<title>Phishing-Simulation</title></head>"
         "<body style='font-family:sans-serif;max-width:640px;margin:60px auto;line-height:1.6'>"
         "<h1>Dies war eine Phishing-Simulation</h1>"
-        "<p>Diese E-Mail war Teil einer Sensibilisierungs-Maßnahme Ihrer Schule. "
-        "Echte Angreifer hätten an dieser Stelle versucht, Ihre Zugangsdaten zu "
-        "stehlen. Bitte melden Sie verdächtige E-Mails künftig an Ihren "
-        "IT-Sicherheitsbeauftragten.</p></body></html>"
+        "<p>Diese E-Mail war Teil einer autorisierten Sensibilisierungs-Massnahme Ihrer "
+        "Schule. Echte Angreifer hätten an dieser Stelle versucht, Ihre Zugangsdaten zu "
+        "stehlen - es wurden keinerlei Daten von Ihnen abgefragt oder gespeichert.</p>"
+        "<h2 style='margin-top:24px;font-size:1.1rem;'>Woran Sie eine solche Mail erkennen</h2>"
+        "<ul><li>Dringlichkeit und Handlungsdruck (\"sofort handeln\", \"Konto wird gesperrt\")</li>"
+        "<li>Abweichende oder unpersönliche Absenderadresse</li>"
+        "<li>Link-Ziel weicht von der erwarteten Domain ab (Mauszeiger über den Link halten)</li>"
+        "<li>Aufforderung, sich \"aus Sicherheitsgründen\" erneut anzumelden</li></ul>"
+        "<p style='margin-top:24px;'>Bitte melden Sie verdächtige E-Mails künftig an Ihre "
+        "IT-Sicherheitsbeauftragten, statt auf enthaltene Links zu klicken.</p></body></html>"
     )
-
-
-@app.route("/fakeWebsiteBackend.js")
-def fake_website_backend():
-    return send_from_directory(BASE_DIR, "fakeWebsiteBackend.js",
-                               mimetype="application/javascript")
-
-
-@app.route("/apply", methods=["POST"])
-def apply():
-    """Record a click on the phishing link as ``clicked`` (= failed)."""
-    data = request.get_json(silent=True) or {}
-    email = data.get("email")
-    wave_id = data.get("id")
-    campaign_id = data.get("c")
-
-    if not email or not wave_id:
-        return jsonify({"success": False, "message": "Daten fehlen"}), 400
-
-    try:
-        db_path = mail_reader.get_db_path(int(campaign_id) if campaign_id else None)
-    except (FileNotFoundError, ValueError):
-        return jsonify({"success": False, "message": "Kampagne nicht gefunden"}), 404
-
-    column = f"mail_{int(wave_id)}"
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(users)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if column not in columns:
-            return jsonify({"success": False, "message": "Unbekannte Mail-ID"}), 404
-        cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
-        user = cursor.fetchone()
-        if not user:
-            return jsonify({"success": False, "message": "Empfänger unbekannt"}), 404
-        cursor.execute(
-            f"UPDATE users SET {column} = ? WHERE id = ?",
-            (cfg.STATUS_CLICKED, user[0]),
-        )
-
-    return jsonify({"success": True})
-
-
-# --- Campaign helpers ------------------------------------------------------
-def _list_campaign_ids():
-    folder = Path(cfg.DATABASES_DIR)
-    if not folder.exists():
-        return []
-    ids = []
-    for p in folder.glob("campaign*.db"):
-        digits = "".join(ch for ch in p.stem if ch.isdigit())
-        if digits:
-            ids.append(int(digits))
-    return sorted(ids)
-
-
-def _campaign_stats(campaign_id):
-    db_path = os.path.join(cfg.DATABASES_DIR, f"campaign{campaign_id}.db")
-    if not os.path.exists(db_path):
-        return None
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(users)")
-        mail_columns = [r[1] for r in cursor.fetchall() if r[1].startswith("mail_")]
-        users_rows = cursor.execute("SELECT * FROM users").fetchall()
-
-    totals = {cfg.STATUS_REPORTED: 0, cfg.STATUS_CLICKED: 0, cfg.STATUS_NO_RESPONSE: 0}
-    per_mail = {c: dict(totals) for c in mail_columns}
-    users = []
-    for row in users_rows:
-        mails = {}
-        counts = {cfg.STATUS_REPORTED: 0, cfg.STATUS_CLICKED: 0, cfg.STATUS_NO_RESPONSE: 0}
-        for c in mail_columns:
-            value = row[c] or cfg.STATUS_NO_RESPONSE
-            mails[c] = value
-            counts[value] = counts.get(value, 0) + 1
-            totals[value] = totals.get(value, 0) + 1
-            per_mail[c][value] = per_mail[c].get(value, 0) + 1
-        users.append({
-            "id": row["id"],
-            "name": row["name"],
-            "lastname": row["lastname"],
-            "email": row["email"],
-            "reported": counts[cfg.STATUS_REPORTED],
-            "clicked": counts[cfg.STATUS_CLICKED],
-            "no_response": counts[cfg.STATUS_NO_RESPONSE],
-            "mails": mails,
-        })
-
-    per_mail_list = [
-        {"wave": int(c.split("_")[1]), **per_mail[c]}
-        for c in sorted(mail_columns, key=lambda x: int(x.split("_")[1]))
-    ]
-    return {"totals": totals, "users": users, "per_mail": per_mail_list,
-            "total_emails": len(mail_columns)}
 
 
 # --- Campaign API ----------------------------------------------------------
 @app.route("/api/campaigns", methods=["GET"])
 @login_required
 def list_campaigns():
-    campaigns = [campaign_runner.get_status(cid) for cid in _list_campaign_ids()]
+    campaigns = [campaign_runner.get_status(cid) for cid in stats_mod.list_campaign_ids()]
     return jsonify({"campaigns": [c for c in campaigns if c]})
 
 
@@ -227,6 +175,8 @@ def create_campaign():
         config = cfg.load_config(config_file)
     except (OSError, FileNotFoundError):
         return jsonify({"error": f"Config '{config_file}' nicht gefunden"}), 404
+    if not os.path.exists(cfg.CSV_PATH):
+        return jsonify({"error": "Keine Empfängerliste (CSV) hochgeladen"}), 400
     db_path = data_creator.create_campaign_db(config, config_file)
     digits = "".join(ch for ch in Path(db_path).stem if ch.isdigit())
     return jsonify({"success": True, "campaign_id": int(digits)})
@@ -259,10 +209,30 @@ def campaign_status(campaign_id):
 @app.route("/api/campaigns/<int:campaign_id>/stats", methods=["GET"])
 @login_required
 def campaign_stats(campaign_id):
-    stats = _campaign_stats(campaign_id)
-    if stats is None:
+    result = stats_mod.campaign_stats(campaign_id)
+    if result is None:
         return jsonify({"error": "Kampagne nicht gefunden"}), 404
-    return jsonify(stats)
+    return jsonify(result)
+
+
+@app.route("/api/campaigns/<int:campaign_id>/export.xlsx", methods=["GET"])
+@login_required
+def campaign_export(campaign_id):
+    try:
+        buf = excel_export.build_campaign_workbook(campaign_id)
+    except FileNotFoundError:
+        return jsonify({"error": "Kampagne nicht gefunden"}), 404
+    name = f"kampagne-{campaign_id}-ergebnisse.xlsx"
+    return send_file(
+        buf, as_attachment=True, download_name=name,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/campaigns/compare", methods=["GET"])
+@login_required
+def campaigns_compare():
+    return jsonify({"campaigns": stats_mod.compare_campaigns()})
 
 
 @app.route("/api/campaigns/<int:campaign_id>/check-responses", methods=["POST"])
@@ -295,8 +265,45 @@ def upload_users():
     os.makedirs(cfg.DATENBANKEN_DIR, exist_ok=True)
     file.save(cfg.CSV_PATH)
     with open(cfg.CSV_PATH, newline="", encoding="utf-8") as f:
-        count = sum(1 for _ in csv.DictReader(f))
+        reader = csv.DictReader(f)
+        if not reader.fieldnames or "email" not in reader.fieldnames:
+            os.remove(cfg.CSV_PATH)
+            return jsonify({"error": "CSV benötigt mindestens eine Spalte 'email'"}), 400
+        count = sum(1 for _ in reader)
     return jsonify({"success": True, "count": count})
+
+
+# --- Templates API -----------------------------------------------------------
+@app.route("/api/templates", methods=["GET"])
+@login_required
+def list_templates():
+    if not os.path.isdir(cfg.MAILS_DIR):
+        return jsonify({"templates": []})
+    profiles = cfg.get_sender_profiles()
+    templates = []
+    for fname in sorted(os.listdir(cfg.MAILS_DIR)):
+        if not fname.endswith(".html"):
+            continue
+        name = fname[:-5]
+        category = name.split("-")[0]
+        templates.append({
+            "name": name,
+            "category": category,
+            "sender": profiles.get(category),
+        })
+    return jsonify({"templates": templates})
+
+
+@app.route("/api/templates/upload", methods=["POST"])
+@login_required
+def upload_template():
+    file = request.files.get("html_file")
+    if not file or not file.filename.endswith(".html"):
+        return jsonify({"error": "Keine gültige HTML-Datei"}), 400
+    filename = os.path.basename(file.filename)
+    os.makedirs(cfg.MAILS_DIR, exist_ok=True)
+    file.save(os.path.join(cfg.MAILS_DIR, filename))
+    return jsonify({"success": True, "filename": filename})
 
 
 # --- Config (YAML) API -----------------------------------------------------

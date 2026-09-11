@@ -1,0 +1,23 @@
+# Beispiel-Kampagnenkonfiguration.
+# Kopiere diese Datei, passe sie an und lade sie ueber das Dashboard
+# (Bereich "Daten" -> YAML hochladen) hoch, um eine neue Kampagne zu erstellen.
+
+name: "Phishing-Test Herbst 2026"
+description: "Erster Sensibilisierungsdurchgang fuer das Kollegium"
+
+send:
+  # Anzahl der Mail-Wellen. Jede Welle sendet EIN zufaellig gewaehltes
+  # Template an ALLE Empfaenger aus der aktuell hochgeladenen CSV-Liste.
+  # Gesamtzahl versendeter Mails = total_waves * Anzahl Empfaenger.
+  total_waves: 4
+  timeframe:
+    start: "01.09.2026"
+    end:   "30.09.2026"
+
+# Aus dieser Liste wird pro Welle zufaellig ein Template gewaehlt.
+# Verfuegbare Templates liegen als .html-Dateien in Server/Mails/ und werden
+# im Dashboard unter "Templates" angezeigt.
+templates:
+  - office-login
+  - google-login
+  - schulleitung-formular

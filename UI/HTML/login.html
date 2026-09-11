@@ -37,7 +37,10 @@ async function doLogin(){
     body: JSON.stringify({ password })
   });
   if(res.ok){ window.location.href = '/'; }
-  else { document.getElementById('loginError').textContent = 'Falsches Passwort'; }
+  else {
+    const data = await res.json().catch(()=>({}));
+    document.getElementById('loginError').textContent = data.message || 'Falsches Passwort';
+  }
 }
 </script>
 </body>

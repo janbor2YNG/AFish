@@ -6,11 +6,14 @@ single source of truth for:
 
 * all filesystem paths (so no script has to guess relative locations anymore),
 * the currently active campaign YAML (``active_config.txt``),
+* the sender profiles per template category (``sender_profiles.yaml``),
 * the persisted application settings (``settings.json`` – SMTP/IMAP credentials,
   dry-run flag, admin password, …).
 
 NOTE: Per project decision the admin password and mail credentials are stored in
-plain text (no hashing/encryption). This is intentional for this internal tool.
+plain text (no hashing/encryption). This is intentional for this internal tool -
+it never leaves the school's own server and settings.json is excluded from
+version control (see .gitignore).
 """
 
 import os
@@ -28,12 +31,15 @@ DATABASES_DIR = os.path.join(REPO_ROOT, "Python", "databases")       # campaign*
 CSV_PATH = os.path.join(DATENBANKEN_DIR, "current_user_list.csv")    # teacher/user list
 SETTINGS_PATH = os.path.join(DATENBANKEN_DIR, "settings.json")       # app settings
 ACTIVE_CONFIG_FILE = os.path.join(BASE_DIR, "active_config.txt")     # active YAML name
+SENDER_PROFILES_PATH = os.path.join(DATENBANKEN_DIR, "sender_profiles.yaml")
 
-# Status values stored in the database (English, per project requirement).
-STATUS_REPORTED = "reported"        # teacher forwarded/reported the mail  -> success
+# Status values stored per mail event (English, per project requirement).
+# Ordered roughly by "how far the recipient got" - reported is the best outcome.
+STATUS_PENDING = "pending"          # wave not sent yet (only used for display/counting)
+STATUS_SENT = "sent"                # mail was handed to the mail server, no reaction yet
 STATUS_CLICKED = "clicked"          # teacher clicked the phishing link    -> failed
-STATUS_NO_RESPONSE = "no_response"  # teacher did not react                -> default
-STATUS_VALUES = (STATUS_REPORTED, STATUS_CLICKED, STATUS_NO_RESPONSE)
+STATUS_REPORTED = "reported"        # teacher forwarded/reported the mail  -> success
+STATUS_VALUES = (STATUS_PENDING, STATUS_SENT, STATUS_CLICKED, STATUS_REPORTED)
 
 # Default settings used when settings.json does not exist yet.
 DEFAULT_SETTINGS = {
@@ -63,9 +69,9 @@ def get_active_config_name():
             name = f.read().strip()
         if name and os.path.exists(os.path.join(DATENBANKEN_DIR, name)):
             return name
-    # Fallback for a fresh checkout: first available YAML, else default.yaml.
+    # Fallback for a fresh checkout: first available YAML.
     files = list_config_files()
-    return files[0] if files else "default.yaml"
+    return files[0] if files else "beispiel-kampagne.yaml"
 
 
 def get_config():
@@ -82,10 +88,52 @@ def load_config(filename=None):
 
 
 def list_config_files():
-    """Return all available campaign YAML files in the Datenbanken folder."""
+    """Return all available campaign YAML files in the Datenbanken folder.
+
+    Excludes sender_profiles.yaml, which lives in the same folder but is not
+    a campaign config.
+    """
     if not os.path.isdir(DATENBANKEN_DIR):
         return []
-    return sorted(f for f in os.listdir(DATENBANKEN_DIR) if f.endswith((".yml", ".yaml")))
+    return sorted(
+        f for f in os.listdir(DATENBANKEN_DIR)
+        if f.endswith((".yml", ".yaml")) and f != os.path.basename(SENDER_PROFILES_PATH)
+    )
+
+
+# --- Sender profiles ---------------------------------------------------------
+DEFAULT_SENDER_PROFILES = {
+    "office": {"name": "IT-Support", "email": "it-support@simulation.schule-intern.example"},
+    "google": {"name": "Konto-Sicherheitsdienst", "email": "sicherheit@simulation.schule-intern.example"},
+    "schulleitung": {"name": "Schulleitung", "email": "verwaltung@simulation.schule-intern.example"},
+}
+
+
+def get_sender_profiles():
+    """Return {category: {name, email}}. Falls back to built-in defaults."""
+    if os.path.exists(SENDER_PROFILES_PATH):
+        try:
+            with open(SENDER_PROFILES_PATH, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            if data:
+                return data
+        except (yaml.YAMLError, OSError):
+            pass
+    return DEFAULT_SENDER_PROFILES
+
+
+def get_sender_for_template(template_name):
+    """Derive the category from the template filename (part before the first '-')
+    and return its sender profile, e.g. 'office-login' -> profiles['office'].
+    Falls back to the globally configured sender_email/name if no profile matches.
+    """
+    category = template_name.split("-")[0]
+    profiles = get_sender_profiles()
+    profile = profiles.get(category)
+    if profile:
+        return category, profile
+    settings = get_settings()
+    return category, {"name": "Absender", "email": settings.get("sender_email", "")}
 
 
 # --- Application settings ---------------------------------------------------

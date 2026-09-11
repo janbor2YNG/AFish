@@ -69,6 +69,14 @@ tbody tr { cursor:pointer; }
       <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <span class="nav-label">Daten</span>
     </div>
+    <div class="nav-item" onclick="showSection('templates',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+      <span class="nav-label">Templates</span>
+    </div>
+    <div class="nav-item" onclick="showSection('compare',this)">
+      <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+      <span class="nav-label">Vergleich</span>
+    </div>
     <hr class="divider">
     <div class="nav-item" onclick="showSection('settings',this)">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -156,7 +164,13 @@ tbody tr { cursor:pointer; }
 
     <section id="sec-stats" style="display:none;">
       <div class="section-label">Auswertung</div>
-      <div class="section-title">Statistiken</div>
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span>Statistiken</span>
+        <a class="btn btn-sm btn-secondary" id="exportBtn" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Excel herunterladen
+        </a>
+      </div>
       <div class="grid-2">
         <div class="card gb">
           <div class="chart-title">Gesamt-Aufteilung</div>
@@ -168,7 +182,7 @@ tbody tr { cursor:pointer; }
           <div class="chart-container"><canvas id="overviewChart"></canvas></div>
         </div>
         <div class="card gb">
-          <div class="chart-title">Response pro Mail (erste 20)</div>
+          <div class="chart-title">Nach Kategorie (Office / Google / Schulleitung / …)</div>
           <div class="chart-container"><canvas id="mailChart"></canvas></div>
         </div>
       </div>
@@ -190,11 +204,11 @@ tbody tr { cursor:pointer; }
         <div class="table-scroll">
           <table id="userTable">
             <thead><tr>
-              <th>Name</th><th>E-Mail</th>
-              <th>Gemeldet</th><th>Geklickt</th><th>Keine Reaktion</th><th>Mails</th>
+              <th>Name</th><th>E-Mail</th><th>Gruppe</th>
+              <th>Erhalten</th><th>Geklickt</th><th>Gemeldet</th><th></th>
             </tr></thead>
             <tbody id="userTableBody">
-              <tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Keine Kampagne ausgewählt</div></td></tr>
+              <tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Keine Kampagne ausgewählt</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -213,14 +227,14 @@ tbody tr { cursor:pointer; }
             <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event,'csv')">
               <svg class="upload-zone-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
               <div class="upload-zone-title">CSV hochladen</div>
-              <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">email, name, lastname, age, role, sub1, sub2</code></div>
+              <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">name, email, gruppe</code> (nur email ist Pflicht)</div>
             </div>
           </label>
           <input type="file" id="csvUploadData" accept=".csv" onchange="handleCsvUpload(event)">
           <div id="csvStatus" class="mt-sm text-sm"></div>
         </div>
         <div class="card gb">
-          <h3 class="text-sm fw-bold" style="margin-bottom:4px;">Campaign (YAML)</h3>
+          <h3 class="text-sm fw-bold" style="margin-bottom:4px;">Kampagne (YAML)</h3>
           <p class="text-xs text-muted" style="margin-bottom:16px;">Lade eine neue Campaign-YAML hoch. Sie wird automatisch zur aktiven Konfiguration.</p>
           <label for="yamlUploadData">
             <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event,'yaml')">
@@ -235,6 +249,53 @@ tbody tr { cursor:pointer; }
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Neue Campaign aus aktiver YAML erstellen
           </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-templates" style="display:none;">
+      <div class="section-label">Szenarien</div>
+      <div class="section-title">Templates</div>
+      <div class="card gb">
+        <div id="templateList" class="mail-grid-detail" style="margin-bottom:24px;">
+          <div class="text-muted text-sm">Lade Templates…</div>
+        </div>
+        <h3 class="text-sm fw-bold" style="margin-bottom:4px;">Neues Template hinzufügen</h3>
+        <p class="text-xs text-muted" style="margin-bottom:16px;">
+          Der Dateiname bestimmt die Kategorie (Teil vor dem ersten "-"), z. B.
+          <code style="color:var(--spring);">office-neu.html</code> &rarr; Kategorie "office".
+          Das passende Absenderprofil wird automatisch verwendet (siehe <code>sender_profiles.yaml</code>).
+        </p>
+        <label for="templateUpload">
+          <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event,'template')">
+            <svg class="upload-zone-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            <div class="upload-zone-title">HTML hochladen</div>
+            <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">.html</code>, Platzhalter: <code>{name} {user_mail} {link} {id}</code></div>
+          </div>
+        </label>
+        <input type="file" id="templateUpload" accept=".html" onchange="handleTemplateUpload(event)">
+        <div id="templateStatus" class="mt-sm text-sm"></div>
+      </div>
+    </section>
+
+    <section id="sec-compare" style="display:none;">
+      <div class="section-label">Auswertung</div>
+      <div class="section-title">Durchgangs-Vergleich</div>
+      <p class="text-xs text-muted" style="margin-bottom:16px;max-width:620px;">
+        Zeigt Klick- und Melderate aller bisherigen Kampagnen nebeneinander, damit sich
+        die Wirksamkeit der Sensibilisierung über mehrere Trainingsdurchgänge hinweg beurteilen lässt.
+      </p>
+      <div class="card">
+        <div class="table-scroll">
+          <table id="compareTable">
+            <thead><tr>
+              <th>Kampagne</th><th>Erstellt</th><th>Versendet</th>
+              <th>Klickquote</th><th>Melderate</th><th>&Delta; Klickquote</th>
+            </tr></thead>
+            <tbody id="compareTableBody">
+              <tr><td colspan="6"><div class="empty-state">Noch keine Kampagnen</div></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -321,11 +382,13 @@ window.addEventListener('DOMContentLoaded',()=>{
 // ── Sidebar / navigation ──────────────────────────────────────────────────
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('collapsed'); }
 const SECTIONS={
-  campaign:{el:'sec-campaign',title:'Campaign'},
-  stats:   {el:'sec-stats',   title:'Statistiken'},
-  data:    {el:'sec-data',    title:'Daten verwalten'},
-  settings:{el:'sec-settings',title:'Einstellungen'},
-  profile: {el:'sec-profile', title:'Profil'},
+  campaign: {el:'sec-campaign', title:'Campaign'},
+  stats:    {el:'sec-stats',    title:'Statistiken'},
+  data:     {el:'sec-data',     title:'Daten verwalten'},
+  templates:{el:'sec-templates',title:'Templates'},
+  compare:  {el:'sec-compare',  title:'Durchgangs-Vergleich'},
+  settings: {el:'sec-settings', title:'Einstellungen'},
+  profile:  {el:'sec-profile',  title:'Profil'},
 };
 function showSection(key, el){
   const navEl = el ? (el.closest ? el.closest('.nav-item')||el : el) : null;
@@ -334,6 +397,8 @@ function showSection(key, el){
   document.getElementById(SECTIONS[key].el).style.display='';
   document.getElementById('topbar-title').textContent=SECTIONS[key].title;
   if(navEl) navEl.classList.add('active');
+  if(key==='templates') loadTemplates();
+  if(key==='compare') loadCompare();
 }
 
 // ── Campaign list / selection ─────────────────────────────────────────────
@@ -389,9 +454,9 @@ async function refreshStatus(){
 function showCampaignDetails(c){
   document.getElementById('progressWrap').style.display='';
   document.getElementById('campaignTiles').style.display='';
-  document.getElementById('tileTotal').textContent=c.total_emails??'—';
+  document.getElementById('tileTotal').textContent=c.total_waves??'—';
   document.getElementById('tileName').textContent=c.name||'—';
-  document.getElementById('tileSent').textContent=`${c.sent_count??0} / ${c.total_emails??0}`;
+  document.getElementById('tileSent').textContent=`${c.waves_sent??0} / ${c.total_waves??0}`;
   const labels={created:'Erstellt',running:'Aktiv',stopped:'Gestoppt',finished:'Abgeschlossen'};
   const st=document.getElementById('tileStatus');
   st.textContent=labels[c.status]||c.status||'—';
@@ -400,6 +465,7 @@ function showCampaignDetails(c){
   document.getElementById('progressPct').textContent=(c.progress||0)+'%';
   document.getElementById('progressStart').textContent=c.start_date||'—';
   document.getElementById('progressEnd').textContent=c.end_date||'—';
+  document.getElementById('exportBtn').href=`/api/campaigns/${activeCampaignId}/export.xlsx`;
 }
 
 async function toggleCampaign(){
@@ -457,11 +523,62 @@ async function uploadCsvFile(file){
   }
 }
 function handleCsvUpload(e){ const f=e.target.files[0]; if(f) uploadCsvFile(f); e.target.value=''; }
+
+async function uploadTemplateFile(file){
+  const fd=new FormData(); fd.append('html_file',file);
+  const res=await apiJson('/api/templates/upload',{method:'POST',body:fd});
+  const ts=document.getElementById('templateStatus');
+  if(res.success){
+    if(ts) ts.innerHTML=`<span style="color:var(--spring);">✓ ${res.filename} hinzugefügt</span>`;
+    showToast(`Template "${res.filename}" hinzugefügt`);
+    loadTemplates();
+  }else{
+    if(ts) ts.innerHTML=`<span style="color:#f87171;">✗ ${res.error||'Fehler'}</span>`;
+    showToast(res.error||'Upload fehlgeschlagen',true);
+  }
+}
+function handleTemplateUpload(e){ const f=e.target.files[0]; if(f) uploadTemplateFile(f); e.target.value=''; }
+
 function handleFileDrop(event,type){
   event.preventDefault();
   const f=event.dataTransfer.files[0]; if(!f) return;
-  if(type==='csv') uploadCsvFile(f); else if(type==='yaml') uploadConfigFile(f);
+  if(type==='csv') uploadCsvFile(f);
+  else if(type==='yaml') uploadConfigFile(f);
+  else if(type==='template') uploadTemplateFile(f);
   event.currentTarget.classList.remove('drag');
+}
+
+// ── Templates ──────────────────────────────────────────────────────────────
+async function loadTemplates(){
+  const list=document.getElementById('templateList');
+  try{
+    const data=await apiJson('/api/templates');
+    const templates=data.templates||[];
+    if(!templates.length){ list.innerHTML='<div class="text-muted text-sm">Keine Templates gefunden</div>'; return; }
+    list.innerHTML=templates.map(t=>`
+      <div class="mail-detail-item" style="text-align:left;">
+        <div class="fw-bold" style="font-size:.85rem;">${t.name}</div>
+        <div class="text-xs text-muted" style="margin-top:4px;">Kategorie: ${t.category}</div>
+        <div class="text-xs text-muted" style="margin-top:2px;">${t.sender?`${t.sender.name} &lt;${t.sender.email}&gt;`:'kein Absenderprofil'}</div>
+      </div>`).join('');
+  }catch(e){ list.innerHTML='<div class="text-muted text-sm">Fehler beim Laden</div>'; }
+}
+
+// ── Durchgangs-Vergleich ──────────────────────────────────────────────────
+async function loadCompare(){
+  const tbody=document.getElementById('compareTableBody');
+  try{
+    const data=await apiJson('/api/campaigns/compare');
+    const rows=data.campaigns||[];
+    if(!rows.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state">Noch keine Kampagnen</div></td></tr>'; return; }
+    tbody.innerHTML=rows.map((r,i)=>{
+      const prev=rows[i-1];
+      const delta=prev?(r.click_rate-prev.click_rate):null;
+      const deltaStr=delta===null?'—':`${delta>0?'+':''}${delta.toFixed(1)} pp`;
+      const deltaColor=delta===null?'var(--white)':delta<0?'var(--spring)':delta>0?'#f87171':'var(--white)';
+      return `<tr><td><span class="fw-bold">${r.name||'—'} (#${r.id})</span></td><td class="text-muted text-xs">${(r.created_at||'').slice(0,10)}</td><td>${r.sent}</td><td>${r.click_rate}%</td><td>${r.report_rate}%</td><td style="color:${deltaColor};">${deltaStr}</td></tr>`;
+    }).join('');
+  }catch(e){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state">Fehler beim Laden</div></td></tr>'; }
 }
 
 // ── Statistics ─────────────────────────────────────────────────────────────
@@ -481,44 +598,44 @@ function renderCharts(){
   if(!lastStats) return;
   const ctx1=document.getElementById('overviewChart').getContext('2d');
   const ctx2=document.getElementById('mailChart').getContext('2d');
-  const t=lastStats.totals||{reported:0,clicked:0,no_response:0};
+  const t=lastStats.totals||{sent:0,clicked:0,reported:0,by_category:{}};
+  const noResponse=Math.max(0,(t.sent||0)-(t.clicked||0)-(t.reported||0));
   if(overviewChart) overviewChart.destroy();
   overviewChart=new Chart(ctx1,{
     type:currentChartType==='bar'?'bar':currentChartType,
-    data:{labels:['Gemeldet','Geklickt','Keine Reaktion'],datasets:[{data:[t.reported,t.clicked,t.no_response],backgroundColor:['rgba(5,220,127,.75)','rgba(248,113,113,.7)','rgba(255,255,255,.15)'],borderColor:['#05dc7f','#f87171','rgba(255,255,255,.2)'],borderWidth:2}]},
+    data:{labels:['Gemeldet','Geklickt','Keine Reaktion'],datasets:[{data:[t.reported,t.clicked,noResponse],backgroundColor:['rgba(5,220,127,.75)','rgba(248,113,113,.7)','rgba(255,255,255,.15)'],borderColor:['#05dc7f','#f87171','rgba(255,255,255,.2)'],borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'rgba(219,227,230,.7)',font:{family:'Open Sauce One,sans-serif',size:11}}}},scales:currentChartType==='bar'?{x:{ticks:{color:'rgba(219,227,230,.6)'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'rgba(219,227,230,.6)'},grid:{color:'rgba(255,255,255,.05)'}}}:{}}
   });
-  const perMail=(lastStats.per_mail||[]).slice(0,20);
-  const lbl=perMail.map(m=>`M${m.wave}`);
-  const rep=perMail.map(m=>m.reported), clk=perMail.map(m=>m.clicked), nor=perMail.map(m=>m.no_response);
+  const cats=Object.keys(t.by_category||{}).sort();
+  const lbl=cats.map(c=>c.charAt(0).toUpperCase()+c.slice(1));
+  const counts=cats.map(c=>t.by_category[c]);
   if(mailChart) mailChart.destroy();
   mailChart=new Chart(ctx2,{
-    type:'bar',data:{labels:lbl,datasets:[{label:'Gemeldet',data:rep,backgroundColor:'rgba(5,220,127,.65)',borderRadius:3},{label:'Geklickt',data:clk,backgroundColor:'rgba(248,113,113,.65)',borderRadius:3},{label:'Keine',data:nor,backgroundColor:'rgba(255,255,255,.12)',borderRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'rgba(219,227,230,.7)',font:{family:'Open Sauce One,sans-serif',size:10}}}},scales:{x:{stacked:true,ticks:{color:'rgba(219,227,230,.5)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{stacked:true,ticks:{color:'rgba(219,227,230,.5)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
+    type:'bar',data:{labels:lbl,datasets:[{label:'Versendet',data:counts,backgroundColor:'rgba(5,220,127,.55)',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(219,227,230,.5)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'rgba(219,227,230,.5)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
   });
 }
 function setChartType(type,btn){currentChartType=type;document.querySelectorAll('.chart-toggle-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderCharts();}
 
 // ── User table ─────────────────────────────────────────────────────────────
-function filterUsers(q){filteredUsers=allUsers.filter(u=>!q||`${u.name} ${u.lastname} ${u.email}`.toLowerCase().includes(q.toLowerCase()));currentPage=1;renderUserTable();}
+function filterUsers(q){filteredUsers=allUsers.filter(u=>!q||`${u.name} ${u.email} ${u.gruppe||''}`.toLowerCase().includes(q.toLowerCase()));currentPage=1;renderUserTable();}
 function filterStatus(v){
   statusFilter=v;
   filteredUsers=allUsers.filter(u=>{
     if(v==='reported') return u.reported>0;
     if(v==='clicked') return u.clicked>0;
-    if(v==='no_response') return u.no_response>0;
+    if(v==='no_response') return (u.sent-u.clicked-u.reported)>0;
     return true;
   });
   currentPage=1;renderUserTable();
 }
-function dotClass(v){ return v==='reported'?'dot-reported':v==='clicked'?'dot-failed':'dot-nicht'; }
 function renderUserTable(){
   const tbody=document.getElementById('userTableBody');
   const page=filteredUsers.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
-  if(!page.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Keine Einträge</div></td></tr>`;renderPagination();return;}
+  if(!page.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Keine Einträge</div></td></tr>`;renderPagination();return;}
   tbody.innerHTML=page.map(u=>{
-    const dots=Object.keys(u.mails).slice(0,30).map(k=>`<span class="mail-dot ${dotClass(u.mails[k])}" title="${k}: ${u.mails[k]}"></span>`).join('');
-    return `<tr onclick="openUserModal(${u.id})"><td><span class="fw-bold">${u.name} ${u.lastname}</span></td><td class="text-muted text-xs">${u.email}</td><td><span class="badge badge-spring">${u.reported}</span></td><td><span class="badge badge-danger">${u.clicked}</span></td><td><span class="badge badge-neutral">${u.no_response}</span></td><td><div class="mail-dots">${dots}</div></td></tr>`;
+    const flag=u.repeat_fail?'<span class="badge badge-danger" title="Mehrfach nicht erkannt">!</span>':'';
+    return `<tr onclick="openUserModal(${u.id})"><td><span class="fw-bold">${u.name}</span></td><td class="text-muted text-xs">${u.email}</td><td class="text-muted text-xs">${u.gruppe||'—'}</td><td>${u.sent}</td><td><span class="badge badge-danger">${u.clicked}</span></td><td><span class="badge badge-spring">${u.reported}</span></td><td>${flag}</td></tr>`;
   }).join('');
   renderPagination();
 }
@@ -536,10 +653,16 @@ function goPage(p){if(p<1||p>Math.ceil(filteredUsers.length/PAGE_SIZE))return;cu
 // ── User modal ─────────────────────────────────────────────────────────────
 function openUserModal(id){
   const u=allUsers.find(x=>x.id===id);if(!u)return;
-  document.getElementById('modalName').textContent=`${u.name} ${u.lastname}`;
-  document.getElementById('modalEmail').textContent=u.email;
-  document.getElementById('modalBadges').innerHTML=`<span class="badge badge-spring badge-dot">${u.reported} Gemeldet</span><span class="badge badge-danger badge-dot">${u.clicked} Geklickt</span><span class="badge badge-neutral badge-dot">${u.no_response} Keine Reaktion</span>`;
-  document.getElementById('modalMailGrid').innerHTML=Object.keys(u.mails).map(k=>{const v=u.mails[k];const cls=v==='reported'?'reported':v==='clicked'?'failed':'nicht';const sym=v==='reported'?'✓':v==='clicked'?'✗':'–';return `<div class="mail-detail-item ${cls}"><div class="mail-detail-num">${sym}</div><div style="font-size:.7rem;margin-top:2px;">Mail ${k.replace('mail_','')}</div></div>`;}).join('')||'<div class="text-muted text-sm">Keine Aktivität</div>';
+  const noResponse=Math.max(0,u.sent-u.clicked-u.reported);
+  document.getElementById('modalName').textContent=u.name;
+  document.getElementById('modalEmail').textContent=`${u.email}${u.gruppe?' · '+u.gruppe:''}`;
+  document.getElementById('modalBadges').innerHTML=`<span class="badge badge-spring badge-dot">${u.reported} Gemeldet</span><span class="badge badge-danger badge-dot">${u.clicked} Geklickt</span><span class="badge badge-neutral badge-dot">${noResponse} Keine Reaktion</span>`;
+  const events=(lastStats&&lastStats.events||[]).filter(e=>e.user_email===u.email).sort((a,b)=>(a.wave||0)-(b.wave||0));
+  document.getElementById('modalMailGrid').innerHTML=events.map(e=>{
+    const cls=e.status==='reported'?'reported':e.status==='clicked'?'failed':'nicht';
+    const sym=e.status==='reported'?'✓':e.status==='clicked'?'✗':'–';
+    return `<div class="mail-detail-item ${cls}" title="${e.category} · ${e.sent_at||''}"><div class="mail-detail-num">${sym}</div><div style="font-size:.7rem;margin-top:2px;">Welle ${e.wave}</div></div>`;
+  }).join('')||'<div class="text-muted text-sm">Keine Aktivität</div>';
   document.getElementById('userModal').classList.add('open');
 }
 function closeModal(){document.getElementById('userModal').classList.remove('open');}
