@@ -166,10 +166,10 @@ tbody tr { cursor:pointer; }
       <div class="section-label">Auswertung</div>
       <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <span>Statistiken</span>
-        <a class="btn btn-sm btn-secondary" id="exportBtn" href="#" target="_blank" rel="noopener">
+        <button class="btn btn-sm btn-secondary" id="exportBtn" onclick="downloadResults()" title="Lädt zwei Dateien herunter: die ausgewertete Excel-Datei und die rohen Zahlen pro Lehrkraft als CSV">
           <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Excel herunterladen
-        </a>
+          Ergebnisse herunterladen
+        </button>
       </div>
       <div class="grid-2">
         <div class="card gb">
@@ -270,7 +270,7 @@ tbody tr { cursor:pointer; }
           <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleFileDrop(event,'template')">
             <svg class="upload-zone-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             <div class="upload-zone-title">HTML hochladen</div>
-            <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">.html</code>, Platzhalter: <code>{name} {user_mail} {link} {id}</code></div>
+            <div class="upload-zone-sub">Drag &amp; Drop oder klicken<br><code style="font-size:.75rem;color:var(--spring);">.html</code>, Platzhalter: <code>{name} {user_mail} {link} {id}</code><br>Der Mail-Betreff kommt aus dem <code>&lt;title&gt;</code>-Tag der Datei.</div>
           </div>
         </label>
         <input type="file" id="templateUpload" accept=".html" onchange="handleTemplateUpload(event)">
@@ -309,8 +309,11 @@ tbody tr { cursor:pointer; }
         <div class="form-group"><label>IMAP Server</label><input type="text" id="set_imap_server" placeholder="imap.gmail.com"></div>
         <div class="form-group"><label>Absender E-Mail</label><input type="email" id="set_sender_email" placeholder="noreply@example.com"></div>
         <div class="form-group"><label>Absender Passwort</label><input type="password" id="set_sender_password" placeholder="••••••••  (leer = unverändert)"></div>
-        <div class="form-group"><label>Betreff</label><input type="text" id="set_mail_subject" placeholder="Wichtige Information"></div>
         <div class="form-group"><label>Tracking-Basis-URL</label><input type="text" id="set_tracking_base_url" placeholder="http://127.0.0.1:5000"></div>
+        <p class="text-xs text-muted" style="margin:-8px 0 16px;">
+          Der Betreff wird nicht hier festgelegt, sondern kommt aus dem &lt;title&gt;-Tag des
+          jeweils verwendeten Templates (Bereich „Templates").
+        </p>
         <div class="form-group">
           <label class="row gap-xs" style="cursor:pointer;align-items:center;">
             <input type="checkbox" id="set_dry_run" style="width:auto;">
@@ -465,7 +468,21 @@ function showCampaignDetails(c){
   document.getElementById('progressPct').textContent=(c.progress||0)+'%';
   document.getElementById('progressStart').textContent=c.start_date||'—';
   document.getElementById('progressEnd').textContent=c.end_date||'—';
-  document.getElementById('exportBtn').href=`/api/campaigns/${activeCampaignId}/export.xlsx`;
+}
+
+// ── Ergebnisse herunterladen (Excel + rohe CSV, zwei Dateien) ─────────────
+function triggerDownload(url){
+  const a=document.createElement('a');
+  a.href=url; a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function downloadResults(){
+  if(!activeCampaignId){ showToast('Bitte zuerst eine Campaign wählen',true); return; }
+  triggerDownload(`/api/campaigns/${activeCampaignId}/export.xlsx`);
+  triggerDownload(`/api/campaigns/${activeCampaignId}/export-raw.csv`);
+  showToast('Excel- und CSV-Datei werden heruntergeladen (ggf. Browser-Hinweis für Mehrfach-Downloads bestätigen)');
 }
 
 async function toggleCampaign(){
@@ -677,7 +694,6 @@ async function loadSettings(){
     document.getElementById('set_smtp_port').value=s.smtp_port||'';
     document.getElementById('set_imap_server').value=s.imap_server||'';
     document.getElementById('set_sender_email').value=s.sender_email||'';
-    document.getElementById('set_mail_subject').value=s.mail_subject||'';
     document.getElementById('set_tracking_base_url').value=s.tracking_base_url||'';
     document.getElementById('set_dry_run').checked=!!s.dry_run;
   }catch(e){}
@@ -689,7 +705,6 @@ async function saveSettings(){
     imap_server:document.getElementById('set_imap_server').value,
     sender_email:document.getElementById('set_sender_email').value,
     sender_password:document.getElementById('set_sender_password').value,
-    mail_subject:document.getElementById('set_mail_subject').value,
     tracking_base_url:document.getElementById('set_tracking_base_url').value,
     dry_run:document.getElementById('set_dry_run').checked,
   };

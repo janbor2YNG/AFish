@@ -7,6 +7,7 @@ endpoints.
 """
 
 import os
+import io
 import sys
 import csv
 import time
@@ -18,8 +19,16 @@ from pathlib import Path
 
 from flask import (
     Flask, request, jsonify, session, redirect,
-    send_from_directory, send_file, url_for,
+    send_from_directory, send_file, url_for, Response,
 )
+
+# When stdout is redirected to a log file (nohup, systemd, ...) rather than a
+# terminal, Python fully buffers it by default - every print() in this app
+# and in the engine modules (mail_sender/mail_reader/campaign_runner all log
+# via plain print()) can then sit unflushed for a long time, making the logs
+# useless for diagnosing "nothing happened" reports. Force line buffering so
+# log lines show up as they happen.
+sys.stdout.reconfigure(line_buffering=True)
 
 # Local (Server/Flask) + engine (Python/) imports.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -125,15 +134,20 @@ def click(campaign_id, token):
     try:
         db_path = mail_reader.get_db_path(campaign_id)
     except FileNotFoundError:
+        print(f"[click] campaign {campaign_id} has no database (deleted/reset?) - "
+              f"token {token} ignored, link is stale")
         return redirect(url_for("awareness"))
 
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
+        cursor = conn.execute(
             """UPDATE events SET status = ?, clicked_at = ?
                WHERE token = ? AND status != ?""",
             (cfg.STATUS_CLICKED, datetime.now().isoformat(timespec="seconds"),
              token, cfg.STATUS_REPORTED),
         )
+        if cursor.rowcount == 0:
+            print(f"[click] campaign {campaign_id}: token not found (or already reported) "
+                  f"- link is stale or was already correctly reported")
     return redirect(url_for("awareness"))
 
 
@@ -226,6 +240,35 @@ def campaign_export(campaign_id):
     return send_file(
         buf, as_attachment=True, download_name=name,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/campaigns/<int:campaign_id>/export-raw.csv", methods=["GET"])
+@login_required
+def campaign_export_raw(campaign_id):
+    """Plain per-teacher raw-numbers CSV - exactly the counts shown in the
+    Statistiken table (received/clicked/reported), with no percentages or
+    other computed values, so the evaluation can be independently
+    recalculated from first principles rather than trusting the Excel export."""
+    data = stats_mod.campaign_stats(campaign_id)
+    if data is None:
+        return jsonify({"error": "Kampagne nicht gefunden"}), 404
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Name", "E-Mail", "Gruppe", "Mails erhalten", "Geklickt",
+                      "Korrekt gemeldet", "Mehrfach nicht erkannt"])
+    for u in data["users"]:
+        writer.writerow([
+            u["name"], u["email"], u["gruppe"] or "", u["sent"], u["clicked"],
+            u["reported"], "Ja" if u["repeat_fail"] else "Nein",
+        ])
+
+    name = f"kampagne-{campaign_id}-rohdaten.csv"
+    # utf-8-sig so Excel opens umlauts correctly instead of guessing the wrong encoding.
+    return Response(
+        buf.getvalue().encode("utf-8-sig"), mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
 
 
@@ -364,4 +407,17 @@ def update_settings():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Bound to localhost and debug-off by default. For recipients on other
+    # machines to reach /click links (and for the report-inbox check to be
+    # testable end to end), the server needs to listen on the school
+    # network's actual address - set AFISH_HOST=0.0.0.0 (or the server's LAN
+    # IP) and make sure "Tracking-Basis-URL" in den Einstellungen points at
+    # that same address, not 127.0.0.1. Leave AFISH_DEBUG unset (or "false")
+    # outside of local development: Flask's debug mode (a) can expose an
+    # interactive code-execution debugger to anyone who can reach the
+    # server, and (b) auto-restarts the whole process on file changes, which
+    # silently kills the background campaign-sending/report-checking thread.
+    host = os.environ.get("AFISH_HOST", "127.0.0.1")
+    port = int(os.environ.get("AFISH_PORT", "5000"))
+    debug = os.environ.get("AFISH_DEBUG", "false").lower() == "true"
+    app.run(host=host, port=port, debug=debug)
